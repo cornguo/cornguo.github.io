@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <title>
+            美音 online (MC MJ 語音系統)
+        </title>
+        <link rel="stylesheet" href="css/screen.css">
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
+        <script type="text/javascript" src="./jquery.holdEvent.js"></script>
+        <script type="text/javascript" src="./howler.js/howler.min.js"></script>
+        <script type="text/javascript" src="./clips.js"></script>
+        <script type="text/javascript" src="./names.js"></script>
+        <script type="text/javascript" src="./sentences.js"></script>
+        <script type="text/javascript" src="./func.js"></script>
+    </head>
+    <body>
+        <div id="control">
+            <button id="say">美音你說說</button><br />
+            <button id="stop">閉嘴</button>
+            <button id="clear">清空</button><br />
+            <button id="lucky">美音好手氣</button><br />
+            <button id="time">美音幾點了</button><br />
+            <button id="getlink">取得分享連結</button>
+        </div>
+        <article>
+            <div id="fb_like">
+                <iframe src="http://www.facebook.com/plugins/like.php?href=http%3A%2F%2Fcornguo.atcity.org%2Ftest%2Fmjcount%2F&amp;layout=button_count&amp;show_faces=true&amp;width=100&amp;action=like&amp;colorscheme=light&amp;height=21" style="border:none; overflow:hidden; height:21px;"></iframe>
+            </div>
+            <h1>美音 online (MC MJ 語音系統)</h1>
+            <div class="container">
+                <span>點 = 聽，長按 = 把單字加進句子裡</span>
+                <div id="buttons"></div>
+            </div>
+            <div class="container">
+                <h1>排字區</h1>
+                <span>拖曳 = 排序, 雙點 = 刪除</span>
+                <div id="tokens"></div>
+                <!-- yes, you can duplicate, extend it without my permission -->
+            </div>
+            <div>
+                <a href="index.devel.html">熱騰騰的 Beta 版</a><br />
+                電腦版推薦使用 IE 以外的瀏覽器。
+                手機部分已知 iPhone 正常，Android 手機請用 <a href="https://play.google.com/store/apps/details?id=org.mozilla.firefox">Firefox</a> 開啟
+            </div>
+        </article>
+    </body>
+</html>
