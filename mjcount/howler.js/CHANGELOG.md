@@ -1,4 +1,24 @@
-# 1.1.14 (October 18, 2013)
+## 1.1.17 (February 5, 2014)
+- `FIXED`: Fix another bug in Chrome that would throw an error when pausing/stopping when a source is already stopped.
+- `ADDED`: CommonJS support for things like Browserify (thanks Michal Kuklis).
+- `ADDED`: Support for playback mp4 files.
+- `ADDED`: Expose the `noAudio` variable to the global `Howler` object.
+- `FIXED`: Fix a rounding error that was causing HTML5 Audio to cut off early on some environments.
+- `FIXED`: The `onend` callback now correctly fires when changing the pos of a sound after it has started playing and when it is using HTML5 Audio.
+
+## 1.1.16 (January 8, 2014)
+- `FIXED`: Prevent InvalidStateError when unloading a sound that has already been stopped.
+- `FIXED`: Fix bug in unload method that prevented the first sound from being unloaded.
+
+## 1.1.15 (December 28, 2013)
+- `FIXED`: Fix bug that prevented master volume from being set to 0.
+- `FIXED`: Fix bug that prevented initial volume from being set to 0.
+- `FIXED`: Update the README to accurately show `autoplay` as defaulting to `false`.
+- `FIXED`: Call `loaderror` when decodeAudioData fails.
+- `FIXED`: Fix bug in setting position on an active playing WebAudio node through 'pos(position, id)' (thanks Arjun Mehta).
+- `FIXED`: Fix an issue with looping after resuming playback when in WebAudio playback (thanks anzev).
+
+## 1.1.14 (October 18, 2013)
 - `FIXED`: Critical bug fix that was breaking support on some browsers and some codecs.
 
 ## 1.1.13 (October 17, 2013)
