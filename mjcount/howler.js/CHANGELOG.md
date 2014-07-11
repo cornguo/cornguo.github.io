@@ -1,3 +1,34 @@
+## 1.1.23 (July 2, 2014)
+- `FIXED`: Playing multiple sprites rapdily with HTML5 Audio cause the sprite to break due to a v1.1.22 update.
+- `FIXED`: Don't run the iOS test if there is no audio context, which prevents a breaking error.
+
+## 1.1.22 (June 28, 2014)
+- `ADDED`: Howler will now automatically attempt to unlock audio on iOS (thanks Federico Brigante).
+- `ADDED`: New `codecs` global Howler method to check for codec support in the current browser (thanks Jay Oster).
+- `FIXED`: End timers are now correctly cleaned up when a sound naturally completes rather than being forced to stop.
+
+## 1.1.21 (May 28, 2014)
+- `ADDED`: Support for npm and bower (thanks Morantron).
+- `ADDED`: Support for audio/aac, audio/m4a and audio/mp4 mime types (thanks Federico Brigante).
+- `FIXED`: Fixed calculation of duration after pausing a sprite that was sometimes causing unexpected behavior.
+- `FIXED`: Clear the event listener when creating a new HTML5 Audio node.
+
+## 1.1.20 (April 18, 2014)
+- `ADDED`: When using Web Audio API, the panningModel now defaults to 'equalpower' to give higher quality sound. It then automatically switches to 'HRTF' when using 3D sound. This can also be overridden with the new `model` property.
+- `FIXED`: Fixed another bug causing issues in CocoonJS (thanks Olivier Biot).
+- `FIXED`: Fixed an issue that could have caused invalid state errors and a memory leak when unloading in Internet Explorer.
+- `FIXED`: The documentation has been updated to include the `rate` property.
+
+## 1.1.19 (April 14, 2014)
+- `ADDED`: Added CocoonJS support (thanks Olivier Biot).
+- `FIXED`: Fixed several issues with pausing sprite instances by overhauling how end timers are tracked and cleared internally.
+- `FIXED`: Prevent error when using a server-side require where window is absent (thanks AlexMost).
+
+## 1.1.18 (March 23, 2014)
+- `FIXED`: Muting a looping sound now correctly keeps the sound muted when using HTML5 Audio.
+- `FIXED`: Wrap AudioContext creation in try/catch to gracefully handle browser bugs: [Chromium issue](https://code.google.com/p/chromium/issues/detail?id=308784) (thanks Chris Buckley).
+- `FIXED`: Listen for HTML5 Audio errors and fire `loaderror` if any are encountered (thanks digitaltonic).
+
 ## 1.1.17 (February 5, 2014)
 - `FIXED`: Fix another bug in Chrome that would throw an error when pausing/stopping when a source is already stopped.
 - `ADDED`: CommonJS support for things like Browserify (thanks Michal Kuklis).
