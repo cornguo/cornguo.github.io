@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="description" content="KP de pon" />
+    <meta name="keywords" content="柯 P, 拍桌, 太鼓, 達人" />
+    <meta name="author" content="cornguo" />
+    <title>KP de pon</title>
+    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=500, user-scalable=0" />
+    <link href='https://fonts.googleapis.com/css?family=PT+Mono' rel='stylesheet' type='text/css'>
+    <link href='https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css' rel='stylesheet' type='text/css'>
+    <script type="text/javascript" src="//www.youtube.com/player_api"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<!--    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>-->
+    <script type="text/javascript" src="./howler.js/howler.min.js"></script>
+    <script type="text/javascript" src="./func.js"></script>
+    <script type="text/javascript" src="./audio.js"></script>
+    <script type="text/javascript" src="./js/metronome.js"></script>
+</head>
+<body>
+
+    <span id="fork_me">
+        <a href="https://github.com/cornguo/kpdepon"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"></a>
+    </span>
+
+    <div id="fb_like">
+        <iframe src="about:blank" data-src="http://www.facebook.com/plugins/like.php?href=http%3A%2F%2Fcornguo.atcity.org%2Ftest%2Fkpdepon%2F&amp;layout=button_count&amp;show_faces=true&amp;width=100&amp;action=like&amp;colorscheme=light&amp;height=21" style="border:none; overflow:hidden; height:21px;"></iframe>
+    </div>
+
+    <div class="container">
+        <div id="animation">
+            <div class="upper">
+                <div class="ka img init hide-mobile"></div>
+                <div id="yt_video"></div>
+                <div class="ka img init flip hide-mobile"></div>
+            </div>
+            <div class="lower">
+                <div class="pon img init"></div>
+                <div class="ka img init flip hide-desktop"></div>
+            </div>
+        </div>
+
+        <div id="usage" class="box">
+            <ul>
+                <li> [a] ['] 柯 Ka
+                <li> [x] [.] 柯 Pon
+                <li> 或是直接用滑鼠點點柯 P
+                <li> [q] 開啟 Youtube 音樂
+                <div class="thanks">Special thanks to <a href="http://applepig.idv.tw/">applepig</a> for this template.</div>
+            </ul>
+        </div>
+
+        <div id="player" class="box">
+            <div class="title">
+                錄音功能（測試中）
+                <span>BPM: <input id="tempo" value="120" /><span id="tempo_stat"></span></span>
+            </div>
+            <textarea id="record_text"></textarea>
+            <a class="btn" id="btn_record"><i class="fa fa-circle"></i></a>
+            <a class="btn" id="btn_play"><i class="fa fa-play"></i></a>
+            <a class="btn" id="btn_stop"><i class="fa fa-stop"></i></a>
+        </div>
+    </div>
+</body>
+</html>

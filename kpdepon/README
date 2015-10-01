@@ -1,0 +1,21 @@
+Just another meaningless work
+
+It adopted metronome from cwilso:
+- https://github.com/cwilso/metronome
+
+Live demo:
+- http://cornguo.atcity.org/test/kpdepon
+
+Credits (by commit, newest first):
+- adpot to applepig's template
+- add test song, especially thanks to will1118@ptt
+- add youtube player by suggestion of xx52002@ptt
+- cleanup js by suggestion of applepig
+- adjust animation by suggestion of horizondrift@ptt
+- change page layout by suggestion of xx52002@ptt
+
+Known problems:
+- not fully working on IE/Edge
+- not sure how to get precise timing in javascript
+- mobile devices has tons of bugs, it just will work as-is
+- if something's wrong, just let it go
