@@ -4,6 +4,7 @@ var sentences = $(document).data('sentences');
 var categories = $(document).data('categories');
 var playing = null;
 var previous = null;
+var interval = null;
 
 function renderButtons(objs) {
     $(Object.keys(objs)).each(function(i, key) {
@@ -144,6 +145,12 @@ $(document).ready(function() {
         sayTokens();
         return false;
     });
+    $('#like').on('click', function() {
+        $('#tokens').empty();
+        var url = prompt('URL? (cancel for stop looping)', 'https://www.facebook.com/IsShow/');
+        speakFacebookLikeCount(url);
+        return false;
+    });
     $('#clear').on('click', function() {
         $('#tokens').empty();
         stopPlaying();
@@ -189,6 +196,11 @@ function appendTokensByString(str) {
             }
             if ("[IP]" === key) {
                 appendTokensByString(getIPString());
+            }
+            if (key.match(/^\[FBLIKE/)) {
+                url = key.match(/^\[FBLIKE=(.*)\]/);
+                stopPlaying();
+                speakFacebookLikeCount(url[1]);
             }
             if ('undefined' !== typeof(names[key])) {
                 $('#tokens').append(tokenMake(key));
@@ -260,4 +272,54 @@ function convertNumToTok(num) {
 function getLink() {
     updateHash();
     return window.location;
+}
+
+// from http://jsfiddle.net/Takazudo/RHnzM/
+function fetchLikeCount(url) {
+    return $.Deferred(function(defer){
+        $.ajax({
+            dataType: 'jsonp',
+            url: 'https://api.facebook.com/method/fql.query?callback=callback',
+            data: {
+                query: 'SELECT like_count FROM link_stat WHERE url="' + url + '"',
+                format: 'JSON'
+            }
+        }).then(function(res){
+            try {
+                defer.resolve(res[0].like_count);
+            } catch(e) {
+                reject();
+            }
+        }, reject);
+        function reject(){
+            defer.reject(';(');
+        };
+    }).promise();
+}
+
+function speakFacebookLikeCount(url) {
+    var callback = function () {
+        // dirty way for cleaning input text
+        stopPlaying();
+        url = $('<div>' + url + '<div>').text();
+        fetchLikeCount(url).always(function (count) {
+            $('#tokens').empty();
+            $('#tokens').append('<div>Facebook like count of [' + url + ']</div>');
+            appendTokensByString(count.toString().replace(/\B(?=(\d){1})/g, " "));
+            sayTokens();
+        })
+    };
+
+    // stops interval that has been set
+    if (null !== interval) {
+        clearInterval(interval);
+    }
+
+    if (url) {
+        $('#like').addClass('talking');
+        callback();
+        interval = setInterval(callback, 3000);
+    } else {
+        $('#like').removeClass('talking');
+    }
 }
