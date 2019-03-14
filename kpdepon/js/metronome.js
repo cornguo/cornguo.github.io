@@ -1,14 +1,14 @@
 var metronome = {
-
     controller: null,
     audioContext: null,
     nextNoteTime: 0.0,
     timerWorker: null,
     tempo: 120.0,
-    lookahead: 15.0,
-    scheduleAheadTime: 0.2,
+    lookahead: 10.0,
+    scheduleAheadTime: 0.1,
     score: '',
     currentNote: 0,
+    unlocked: false,
     isPlaying: false,
     statCallback: function (curr, len) {},
 
@@ -47,6 +47,15 @@ var metronome = {
     },
 
     play: function (score) {
+        if (!this.unlocked) {
+            // play silent buffer to unlock the audio
+            var buffer = this.audioContext.createBuffer(1, 1, 22050);
+            var node = this.audioContext.createBufferSource();
+            node.buffer = buffer;
+            node.start(0);
+            this.unlocked = true;
+        }
+
         if (!this.isPlaying) {
             if (undefined !== score) {
                 this.score = score;
@@ -73,7 +82,7 @@ var metronome = {
         this.timerWorker = new Worker('js/metronomeworker.js');
 
         this.timerWorker.onmessage = function(e) {
-            if (e.data == 'tick') {
+            if ('tick' == e.data) {
                 el.scheduler();
             } else {
                 console.log('message:' + e.data);
