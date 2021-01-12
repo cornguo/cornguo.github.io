@@ -5,12 +5,12 @@
     <link rel="stylesheet" href="style.css"></link>
     <script type="text/javascript" src="func.inc.js"></script>
 </head>
-<body onload="redraw();">
+<body onload="redraw()">
 <h1>Bingo.</h1>
 <div id="container">
     <div>
-        Table Num: <input id="table-number" type="number" min="0" value="0" onchange="redraw();" onclick="this.select();"></input>
-        <button id="save-table" onclick="setTable();" class="pure-button button-success">Save Table</button>
+        Table Num: <input id="table-number" type="number" min="0" value="0" onchange="redraw()" onclick="this.select()"></input>
+        <button id="save-table" onclick="setTable()" class="pure-button button-success">Save Table</button>
     </div>
     <div id="bingo-continer" class="pure-g">
         <div id="bingo" class="pure-u-16-24"></div>
@@ -18,7 +18,7 @@
     </div>
     <hr />
     <div id="pot-container">
-        Pot Num: <input id="pot-number" type="number" min="0" max="99" value="0" onclick="this.select();"></input>
+        Pot Num: <input id="pot-number" type="number" min="0" max="99" value="0" onclick="this.select()"></input>
         <button id="add-pot-num" onclick="addPotNum()" class="pure-button button-success">Add</button>
         <button id="remove-pot-num" onclick="removePotNum()" class="pure-button button-error">Remove</button>
         <div id="pot"></div>
