@@ -29,7 +29,7 @@ function getTable() {
         if (12 === i) {
             table += '<input id="num-12" disabled="disabled" value="FREE"></input>';
         } else {
-            table += '<input id="num-' + i + '" type="number" min="0" value="' + nums[i] + '" class="' + checked + '" onclick="this.select()" />';
+            table += '<input id="num-' + i + '" type="number" min="0" value="' + nums[i] + '" class="' + checked + '" onclick="this.select();" />';
         }
         table += '</td>';
 
