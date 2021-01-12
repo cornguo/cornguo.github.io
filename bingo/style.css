@@ -1,0 +1,55 @@
+body {
+    padding: 10px;
+}
+* {
+    font-size: 1.1em;
+}
+.num-matched {
+    background-color: #FFE!important;
+}
+.bingo {
+    background-color: #FEE!important;
+}
+input {
+    border: none;
+    border-bottom: 1px solid #EEE;
+    margin: 0;
+    height: 2em;
+    text-align: center;
+}
+td {
+    padding: 0!important;
+    margin: 0!important;
+    text-align: center;
+}
+td > input {
+    width: 100%;
+}
+div {
+    padding: 5px 0;
+}
+#pot > ul > li{
+    margin: 1em;
+    display: inline-block;
+}
+#table-list > ul {
+    margin: 0;
+}
+#table-list > ul > li {
+    margin: 5px 10px;
+    list-style-type: none;
+}
+.pure-button {
+    border-radius: 5px;
+    color: #FFF;
+    margin-right: 5px;
+}
+.button-success {
+    background: rgb(28, 184, 65);
+}
+.button-error {
+    background: rgb(202, 60, 60);
+}
+.button-secondary {
+    background: rgb(66, 184, 221);
+}

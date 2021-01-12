@@ -1,0 +1,28 @@
+<html>
+<head>
+    <title>Bingo.</title>
+    <link rel="stylesheet" href="pure-min.css"></link>
+    <link rel="stylesheet" href="style.css"></link>
+    <script type="text/javascript" src="func.inc.js"></script>
+</head>
+<body onload="redraw();">
+<h1>Bingo.</h1>
+<div id="container">
+    <div>
+        Table Num: <input id="table-number" type="number" min="0" value="0" onchange="redraw()"></input>
+        <button id="save-table" onclick="setTable()" class="pure-button button-success">Save Table</button>
+    </div>
+    <div id="bingo-continer" class="pure-g">
+        <div id="bingo" class="pure-u-18-24"></div>
+        <div id="table-list" class="pure-u-6-24"></div>
+    </div>
+    <hr />
+    <div id="pot-container">
+        Pot Num: <input id="pot-number" type="number" min="0" max="99" value="0"></input>
+        <button id="add-pot-num" onclick="addPotNum()" class="pure-button button-success">Add</button>
+        <button id="remove-pot-num" onclick="removePotNum()" class="pure-button button-error">Remove</button>
+        <div id="pot"></div>
+    </div>
+</div>
+</body>
+</html>
