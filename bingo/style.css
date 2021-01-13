@@ -5,10 +5,10 @@ body {
     font-size: 1.1em;
 }
 .num-matched {
-    background-color: #FFE!important;
+    background-color: #FFA!important;
 }
 .bingo {
-    background-color: #FEE!important;
+    background-color: #FAA!important;
 }
 input {
     border: none;
