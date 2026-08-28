@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>政治問答模擬器</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #1e2535;
+      background: #141824;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header { justify-content: flex-start; }
+    header .spacer { flex: 1; }
+
+    #download-btn {
+      font-size: 12px;
+      background: #1e2535;
+      color: #94a3b8;
+      border: 1px solid #2d3748;
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+
+    #download-btn:hover { background: #2d3748; color: #e2e8f0; }
+    #download-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    header .badge {
+      font-size: 11px;
+      background: #1a3a5c;
+      color: #60a5fa;
+      border: 1px solid #2563eb44;
+      border-radius: 4px;
+      padding: 2px 8px;
+      letter-spacing: 0.05em;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    #status-bar {
+      font-size: 12px;
+      color: #64748b;
+      padding: 8px 24px;
+      background: #0f1117;
+      border-bottom: 1px solid #1e2535;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #374151;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+
+    #status-dot.ready   { background: #22c55e; }
+    #status-dot.loading { background: #f59e0b; animation: pulse 1s infinite; }
+    #status-dot.error   { background: #ef4444; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    #chat-window {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+
+    .msg {
+      display: flex;
+      flex-direction: column;
+      max-width: 75%;
+      gap: 4px;
+    }
+
+    .msg.user  { align-self: flex-end; align-items: flex-end; }
+    .msg.model { align-self: flex-start; align-items: flex-start; }
+
+    .msg-label {
+      font-size: 11px;
+      color: #475569;
+      letter-spacing: 0.04em;
+    }
+
+    .msg-bubble {
+      padding: 12px 16px;
+      border-radius: 16px;
+      line-height: 1.65;
+      font-size: 18px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg.user  .msg-bubble {
+      background: #1d4ed8;
+      color: #eff6ff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg.model .msg-bubble {
+      background: #1e2535;
+      color: #cbd5e1;
+      border-bottom-left-radius: 4px;
+      border: 1px solid #2d3748;
+    }
+
+    .msg.model .msg-bubble.streaming::after {
+      content: "▍";
+      animation: blink .6s step-end infinite;
+      margin-left: 2px;
+    }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    #input-area {
+      padding: 16px 24px 20px;
+      background: #141824;
+      border-top: 1px solid #1e2535;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    #user-input {
+      flex: 1;
+      background: #1e2535;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #e2e8f0;
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      max-height: 160px;
+      line-height: 1.5;
+      transition: border-color 0.2s;
+    }
+
+    #user-input:focus { border-color: #3b82f6; }
+    #user-input::placeholder { color: #475569; }
+
+    #send-btn {
+      background: #1d4ed8;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s, opacity 0.2s;
+      align-self: flex-end;
+    }
+
+    #send-btn:hover:not(:disabled) { background: #2563eb; }
+    #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #api-warning {
+      display: none;
+      margin: 20px 24px;
+      padding: 16px;
+      background: #1c1208;
+      border: 1px solid #92400e55;
+      border-radius: 10px;
+      font-size: 13px;
+      color: #fcd34d;
+      line-height: 1.7;
+    }
+
+    #api-warning a { color: #60a5fa; }
+
+    #diag {
+      display: none;
+      margin: 0 24px 16px;
+      padding: 14px 16px;
+      background: #0d1a2a;
+      border: 1px solid #1e3a5f;
+      border-radius: 10px;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.9;
+      font-family: monospace;
+    }
+
+    #diag .ok   { color: #4ade80; }
+    #diag .fail { color: #f87171; }
+    #diag .warn { color: #fbbf24; }
+
+    .empty-hint {
+      text-align: center;
+      color: #374151;
+      font-size: 13px;
+      margin: auto;
+      line-height: 2;
+    }
+
+    .empty-hint strong { color: #4b5563; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="badge">Gemini Nano · on-device</span>
+  <h1>問 A 答 B 政治回應模擬器</h1>
+  <span class="spacer"></span>
+  <button id="download-btn" disabled>下載截圖</button>
+</header>
+
+<div id="status-bar">
+  <span id="status-dot"></span>
+  <span id="status-text">正在初始化 Gemini Nano…</span>
+</div>
+
+<div id="api-warning">
+  ⚠️ <strong>未偵測到 Chrome Built-in AI API。</strong><br/>
+  請依照以下步驟啟用（需要 Chrome 127+）：<br/><br/>
+  1. 在 Chrome 網址列貼上：<code>chrome://flags/#prompt-api-for-gemini-nano</code> → 設為 <strong>Enabled</strong><br/>
+  2. 再貼上：<code>chrome://flags/#optimization-guide-on-device-model</code> → 設為 <strong>Enabled BypassPerfRequirement</strong><br/>
+  3. 點擊右下角 <strong>Relaunch</strong> 重啟 Chrome<br/>
+  4. 重新開啟此頁面（<code>http://localhost:8765</code>）<br/><br/>
+  首次使用會自動下載 Gemini Nano 模型（約 1.7GB），下載期間進度條會顯示百分比。
+</div>
+
+<div id="diag"></div>
+
+<div id="chat-window">
+  <div class="empty-hint" id="empty-hint">
+    <strong>向記者發問吧</strong><br/>
+    不論問什麼，都會得到一份精心準備的答案。
+  </div>
+</div>
+
+<div id="input-area">
+  <textarea
+    id="user-input"
+    rows="1"
+    placeholder="記者提問（例：市長，您如何回應外界對您家族財產的質疑？）"
+  ></textarea>
+  <button id="send-btn" disabled>發問</button>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `風格指示：問 A 答 B 型政治回應
+
+以下不是模仿蔣萬安個人的遣詞，而是把可觀察到的回應策略抽象成可重複使用的風格：
+
+面對任何問題時，不直接處理提問的核心、責任歸屬或二選一要求。先從問題裡抓取一個能轉向的關鍵字；若找不到關聯，也可直接切換到事先準備好的主題。
+
+回答必須保持正式、沉穩、正經八百，彷彿已完整回答問題。使用「我們一直以來」「市府團隊」「持續努力」「市民有感」「全力以赴」等安全句型，接著列舉兩至三項政績、政策或對手爭議。
+
+若問題涉及自身責任，採用以下優先順序轉移：
+
+反問其他縣市或中央政府有沒有做到。
+指出更大的國家級問題。
+改談與問題無關但形象正面的政績。
+丟出一句針對政治對手的短金句。
+以「謝謝」結束，不接受追問。
+
+不要承認正在轉移話題，也不要使用「這與問題無關」「我不回答」等露骨說法。內容可以與問題缺乏邏輯關聯，但語氣和句子必須連貫完整。
+
+回答的目的不是解答，而是讓預先設定的訊息成功出現在新聞畫面中。
+
+建議模板：
+記者問：【具體問題 A】
+回答：「我想，大家真正關心的還是【預設主題 B】。我們市府團隊一直以來都非常努力，包括【政績一】、【政績二】以及【政績三】。反觀【中央／其他縣市／政治對手】，到現在仍然沒有清楚說明。市民的感受最直接，我們會持續全力以赴。謝謝。」
+
+更荒謬、適合諷刺創作的版本：
+無論被問什麼，都回答同一份準備稿；問題與答案距離越遠，語氣越要篤定。回答中至少放入三個正面政績名詞、一個中央政府的責任，以及一句可以剪成十五秒短影音的攻擊金句。最後立即說謝謝並離場，營造「不是沒回答，而是答案活在另一個問題裡」的效果。
+
+一句話濃縮就是：不要回答記者問了什麼，要回答你希望記者今天播什麼。
+
+現在請你扮演這個政治人物，對接下來記者的每一個提問，都用上述風格回應。`;
+
+let session = null;
+let lmAPI = null;
+let systemPromptInjected = false; // true if systemPrompt was set at session level
+
+const statusDot   = document.getElementById('status-dot');
+const statusText  = document.getElementById('status-text');
+const chatWindow  = document.getElementById('chat-window');
+const userInput   = document.getElementById('user-input');
+const sendBtn     = document.getElementById('send-btn');
+const downloadBtn = document.getElementById('download-btn');
+const warning     = document.getElementById('api-warning');
+const diagEl      = document.getElementById('diag');
+const emptyHint   = document.getElementById('empty-hint');
+
+function setStatus(state, text) {
+  statusDot.className = state;
+  statusText.textContent = text;
+}
+
+function row(label, ok, detail = '') {
+  const cls = ok === true ? 'ok' : ok === false ? 'fail' : 'warn';
+  const icon = ok === true ? '✓' : ok === false ? '✗' : '!';
+  return `<span class="${cls}">[${icon}] ${label}${detail ? ' — ' + detail : ''}</span>`;
+}
+
+// Probe every known API path across Chrome versions.
+// Chrome 135+ uses `LanguageModel` global with `.availability()`.
+// Chrome 127-134 uses `window.ai.languageModel` with `.capabilities()`.
+function resolveAPI() {
+  const candidates = [
+    { path: 'LanguageModel',           obj: window.LanguageModel,         availFn: 'availability', createFn: 'create' },
+    { path: 'window.ai.languageModel', obj: window.ai?.languageModel,     availFn: 'capabilities', createFn: 'create' },
+    { path: 'window.ai.assistant',     obj: window.ai?.assistant,         availFn: 'capabilities', createFn: 'create' },
+  ];
+  for (const c of candidates) {
+    if (c.obj && typeof c.obj[c.createFn] === 'function') return c;
+    if (c.obj && typeof c.obj[c.availFn] === 'function') return c;
+  }
+  return null;
+}
+
+// Normalise availability across Chrome versions.
+// Chrome 135+: string 'available' | 'readily' | 'downloadable' | 'downloading' | 'unavailable'
+// Chrome 127-134: object { available: 'readily' | 'after-download' | 'no' }
+async function checkAvailability(api) {
+  if (typeof api.obj.availability === 'function') {
+    const val = await api.obj.availability();
+    const ready = val === 'readily' || val === 'available';
+    const needsDownload = val === 'downloadable' || val === 'downloading' || val === 'after-download';
+    const unavailable = val === 'unavailable' || val === 'no';
+    return { raw: val, ready, needsDownload, unavailable };
+  }
+  const cap = await api.obj.capabilities();
+  const val = cap?.available ?? 'unknown';
+  return { raw: val, ready: val === 'readily', needsDownload: val === 'after-download', unavailable: val === 'no' };
+}
+
+async function runDiagnostics() {
+  const lines = [];
+
+  const globals = ['ai', 'LanguageModel', 'SummarizationSession', 'Translation']
+    .map(k => `${k}:${k in window ? typeof window[k] : '✗'}`)
+    .join('  ');
+  lines.push(row('globals', null, globals));
+
+  if ('ai' in window) {
+    lines.push(row('window.ai keys', true, Object.keys(window.ai ?? {}).join(', ') || '(empty)'));
+  } else {
+    lines.push(row('window.ai', false, 'undefined'));
+  }
+
+  const resolved = resolveAPI();
+  if (resolved) {
+    lines.push(row('API path', true, resolved.path));
+    lines.push(row('create()', typeof resolved.obj.create === 'function', typeof resolved.obj.create));
+    try {
+      const avail = await checkAvailability(resolved);
+      lines.push(row('availability', avail.ready, avail.raw));
+    } catch (e) {
+      lines.push(row('availability check', false, e.message));
+    }
+  } else {
+    lines.push(row('API', false, 'no known path found'));
+  }
+
+  diagEl.style.display = 'block';
+  diagEl.innerHTML = '<strong style="color:#64748b">診斷結果：</strong><br/>' + lines.join('<br/>');
+  return resolved;
+}
+
+async function initModel() {
+  const resolved = await runDiagnostics();
+
+  if (!resolved) {
+    setStatus('error', 'Gemini Nano API 不可用 — 請依下方步驟啟用');
+    warning.style.display = 'block';
+    return;
+  }
+
+  lmAPI = resolved.obj;
+
+  try {
+    setStatus('loading', '正在檢查 Gemini Nano 可用性…');
+    const avail = await checkAvailability(resolved);
+
+    if (avail.unavailable) {
+      setStatus('error', 'Gemini Nano 目前不可用（硬體不符或模型未下載）');
+      warning.style.display = 'block';
+      return;
+    }
+
+    if (avail.needsDownload) {
+      setStatus('loading', '正在下載 Gemini Nano 模型，請稍候…');
+    }
+
+    const monitorFn = m => {
+      m.addEventListener('downloadprogress', e => {
+        const pct = e.total ? Math.round((e.loaded / e.total) * 100) : '…';
+        setStatus('loading', `下載模型中… ${pct}%`);
+      });
+    };
+
+    // Attempt 1: systemPrompt option (Chrome 127–135+)
+    let creationMethod = 'none';
+    try {
+      session = await lmAPI.create({ systemPrompt: SYSTEM_PROMPT, monitor: monitorFn });
+      creationMethod = 'systemPrompt';
+    } catch (e1) {
+      console.warn('systemPrompt create failed:', e1.message);
+    }
+
+    // Attempt 2: initialPrompts with system role (some builds)
+    if (!session) {
+      try {
+        session = await lmAPI.create({
+          initialPrompts: [{ role: 'system', content: SYSTEM_PROMPT }],
+          monitor: monitorFn,
+        });
+        creationMethod = 'initialPrompts:system';
+      } catch (e2) {
+        console.warn('initialPrompts:system failed:', e2.message);
+      }
+    }
+
+    // Attempt 3: initialPrompts with user+assistant pair
+    if (!session) {
+      try {
+        session = await lmAPI.create({
+          initialPrompts: [
+            { role: 'user',      content: SYSTEM_PROMPT },
+            { role: 'assistant', content: '明白了。我準備好接受記者提問。' },
+          ],
+          monitor: monitorFn,
+        });
+        creationMethod = 'initialPrompts:user+assistant';
+      } catch (e3) {
+        console.warn('initialPrompts fallback failed:', e3.message);
+      }
+    }
+
+    // Attempt 4: bare session — inject system prompt into first user message instead
+    if (!session) {
+      session = await lmAPI.create({ monitor: monitorFn });
+      creationMethod = 'bare (will inject)';
+    }
+
+    systemPromptInjected = (creationMethod !== 'bare (will inject)');
+    diagEl.innerHTML += `<br/><span class="${systemPromptInjected ? 'ok' : 'warn'}">[${systemPromptInjected ? '✓' : '!'}] 系統提示注入方式 — ${creationMethod}</span>`;
+
+    setStatus('ready', `Gemini Nano 就緒（${resolved.path}）`);
+    sendBtn.disabled = false;
+    userInput.focus();
+  } catch (err) {
+    setStatus('error', `初始化失敗：${err.message}`);
+    diagEl.innerHTML += `<br/><span class="fail">[✗] 錯誤詳情 — ${err.message}</span>`;
+    warning.style.display = 'block';
+    console.error(err);
+  }
+}
+
+function appendMsg(role, text, streaming = false) {
+  emptyHint?.remove();
+  const wrapper = document.createElement('div');
+  wrapper.className = `msg ${role}`;
+
+  const label = document.createElement('div');
+  label.className = 'msg-label';
+  label.textContent = role === 'user' ? '記者' : '市長';
+
+  const bubble = document.createElement('div');
+  bubble.className = `msg-bubble${streaming ? ' streaming' : ''}`;
+  bubble.textContent = text;
+
+  wrapper.appendChild(label);
+  wrapper.appendChild(bubble);
+  chatWindow.appendChild(wrapper);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+  return bubble;
+}
+
+let firstMessage = true;
+
+async function sendMessage() {
+  const text = userInput.value.trim();
+  if (!text || !session) return;
+
+  userInput.value = '';
+  userInput.style.height = 'auto';
+  sendBtn.disabled = true;
+
+  appendMsg('user', text);
+
+  const bubble = appendMsg('model', '', true);
+
+  // Always inject system prompt into the first message — session-level systemPrompt
+  // is silently ignored in some Chrome builds, so message-level injection is the safe fallback.
+  let promptText = text;
+  if (firstMessage) {
+    promptText = SYSTEM_PROMPT + '\n\n---\n\n現在，記者提問：' + text;
+  }
+  if (firstMessage) {
+    diagEl.style.display = 'none';
+    warning.style.display = 'none';
+  }
+  firstMessage = false;
+
+  try {
+    let answered = false;
+
+    // Try streaming (chunks may be accumulated text or deltas depending on Chrome version)
+    if (typeof session.promptStreaming === 'function') {
+      try {
+        const stream = session.promptStreaming(promptText);
+        let accumulated = '';
+        let chunkCount = 0;
+
+        for await (const chunk of stream) {
+          chunkCount++;
+          const chunkStr = String(chunk);
+
+          // Detect mode: if chunk is always longer and starts with previous text → accumulated.
+          // If chunk is short and doesn't extend accumulated → delta.
+          if (chunkStr.startsWith(accumulated) || accumulated === '') {
+            accumulated = chunkStr;           // accumulated mode (old API default)
+          } else {
+            accumulated += chunkStr;          // delta mode
+          }
+
+          bubble.textContent = accumulated;
+          chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        if (accumulated.length > 0) {
+          answered = true;
+        }
+      } catch (streamErr) {
+        console.warn('promptStreaming failed:', streamErr);
+      }
+    }
+
+    // Fallback to non-streaming prompt()
+    if (!answered) {
+      bubble.textContent = '';
+      const result = await session.prompt(promptText);
+      bubble.textContent = String(result);
+    }
+
+    bubble.classList.remove('streaming');
+    downloadBtn.disabled = false;
+  } catch (err) {
+    bubble.classList.remove('streaming');
+    bubble.textContent = `⚠️ 錯誤：${err.message}`;
+    bubble.style.color = '#f87171';
+    console.error(err);
+  } finally {
+    sendBtn.disabled = false;
+    userInput.focus();
+  }
+}
+
+// Auto-resize textarea
+userInput.addEventListener('input', () => {
+  userInput.style.height = 'auto';
+  userInput.style.height = Math.min(userInput.scrollHeight, 160) + 'px';
+});
+
+userInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    if (!sendBtn.disabled) sendMessage();
+  }
+});
+
+sendBtn.addEventListener('click', sendMessage);
+
+async function downloadChatImage() {
+  const messages = [...chatWindow.querySelectorAll('.msg')];
+  if (!messages.length) return;
+
+  downloadBtn.disabled = true;
+  downloadBtn.textContent = '處理中…';
+
+  try {
+    const SCALE       = 2;
+    const W           = 720;
+    const PAD         = 32;
+    const BUBBLE_PAD  = 14;
+    const MSG_GAP     = 20;
+    const LABEL_SIZE  = 12;
+    const FONT_SIZE   = 18;
+    const LINE_H      = Math.round(FONT_SIZE * 1.7);
+    const MAX_BUBBLE  = Math.round(W * 0.74);
+    const FONT        = `${FONT_SIZE}px "Microsoft JhengHei", "Noto Sans TC", sans-serif`;
+    const LABEL_FONT  = `${LABEL_SIZE}px "Microsoft JhengHei", "Noto Sans TC", sans-serif`;
+    const RADIUS      = 14;
+
+    // Measure canvas on a scratch context
+    const scratch = document.createElement('canvas').getContext('2d');
+    scratch.font = FONT;
+
+    function wrapText(ctx, text, maxW) {
+      const result = [];
+      for (const para of text.split('\n')) {
+        if (!para) { result.push(''); continue; }
+        let line = '';
+        for (const ch of para) {
+          const test = line + ch;
+          if (ctx.measureText(test).width > maxW && line) {
+            result.push(line);
+            line = ch;
+          } else {
+            line = test;
+          }
+        }
+        if (line) result.push(line);
+      }
+      return result;
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y,     x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x,     y + h, r);
+      ctx.arcTo(x,     y + h, x,     y,     r);
+      ctx.arcTo(x,     y,     x + w, y,     r);
+      ctx.closePath();
+    }
+
+    const HEADER_H    = 56; // height of the header bar
+
+    // First pass — compute item layout
+    const items = [];
+    let totalH = PAD + HEADER_H;
+    for (const msg of messages) {
+      const isUser = msg.classList.contains('user');
+      const label  = msg.querySelector('.msg-label')?.textContent ?? '';
+      const text   = msg.querySelector('.msg-bubble')?.textContent ?? '';
+      scratch.font = FONT;
+      const lines  = wrapText(scratch, text, MAX_BUBBLE - BUBBLE_PAD * 2);
+      const bubbleH = BUBBLE_PAD * 2 + lines.length * LINE_H;
+      items.push({ isUser, label, lines, bubbleH });
+      totalH += LABEL_SIZE + 6 + bubbleH + MSG_GAP;
+    }
+    totalH += PAD;
+
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    canvas.width  = W * SCALE;
+    canvas.height = totalH * SCALE;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(SCALE, SCALE);
+
+    // Background
+    ctx.fillStyle = '#0f1117';
+    ctx.fillRect(0, 0, W, totalH);
+
+    // Header bar
+    ctx.fillStyle = '#141824';
+    ctx.fillRect(0, 0, W, HEADER_H);
+    ctx.fillStyle = '#1e2535';
+    ctx.fillRect(0, HEADER_H - 1, W, 1); // bottom border
+
+    // Badge
+    const BADGE_FONT = `11px "Microsoft JhengHei", "Noto Sans TC", sans-serif`;
+    const BADGE_TEXT = 'Gemini Nano · on-device';
+    ctx.font = BADGE_FONT;
+    const badgeW = ctx.measureText(BADGE_TEXT).width + 16;
+    const badgeH = 20;
+    const badgeX = PAD;
+    const badgeY = (HEADER_H - badgeH) / 2;
+    roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 4);
+    ctx.fillStyle = '#1a3a5c';
+    ctx.fill();
+    ctx.strokeStyle = '#2563eb44';
+    ctx.lineWidth = 1;
+    roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 4);
+    ctx.stroke();
+    ctx.fillStyle = '#60a5fa';
+    ctx.textAlign = 'left';
+    ctx.fillText(BADGE_TEXT, badgeX + 8, badgeY + 13);
+
+    // Title
+    const TITLE_FONT = `600 16px "Microsoft JhengHei", "Noto Sans TC", sans-serif`;
+    ctx.font = TITLE_FONT;
+    ctx.fillStyle = '#f1f5f9';
+    ctx.textAlign = 'left';
+    ctx.fillText('問 A 答 B 政治回應模擬器', badgeX + badgeW + 12, HEADER_H / 2 + 6);
+
+    // Draw messages
+    let y = PAD + HEADER_H;
+    for (const { isUser, label, lines, bubbleH } of items) {
+      // Label
+      ctx.font      = LABEL_FONT;
+      ctx.fillStyle = '#475569';
+      ctx.textAlign = isUser ? 'right' : 'left';
+      ctx.fillText(label, isUser ? W - PAD : PAD, y + LABEL_SIZE);
+      y += LABEL_SIZE + 6;
+
+      // Measure actual bubble width from text
+      ctx.font = FONT;
+      const textW = Math.max(...lines.map(l => ctx.measureText(l).width), 40);
+      const bubbleW = Math.min(MAX_BUBBLE, textW + BUBBLE_PAD * 2 + 4);
+      const bx = isUser ? W - PAD - bubbleW : PAD;
+
+      // Bubble background
+      ctx.fillStyle = isUser ? '#1d4ed8' : '#1e2535';
+      roundRect(ctx, bx, y, bubbleW, bubbleH, RADIUS);
+      ctx.fill();
+
+      // Bubble border for model messages
+      if (!isUser) {
+        ctx.strokeStyle = '#2d3748';
+        ctx.lineWidth   = 1;
+        roundRect(ctx, bx, y, bubbleW, bubbleH, RADIUS);
+        ctx.stroke();
+      }
+
+      // Text
+      ctx.fillStyle = isUser ? '#eff6ff' : '#cbd5e1';
+      ctx.textAlign = 'left';
+      for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], bx + BUBBLE_PAD, y + BUBBLE_PAD + FONT_SIZE + i * LINE_H);
+      }
+
+      y += bubbleH + MSG_GAP;
+    }
+
+    // Export
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href     = URL.createObjectURL(blob);
+      a.download = `chat-${new Date().toISOString().slice(0, 10)}.png`;
+      a.click();
+    }, 'image/png');
+  } catch (e) {
+    alert('截圖失敗：' + e.message);
+    console.error(e);
+  } finally {
+    downloadBtn.disabled = false;
+    downloadBtn.textContent = '下載截圖';
+  }
+}
+
+downloadBtn.addEventListener('click', downloadChatImage);
+
+initModel();
+</script>
+</body>
+</html>
