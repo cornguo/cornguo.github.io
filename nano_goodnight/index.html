@@ -361,6 +361,21 @@ body{
 }
 .ov-btn:active{transform:translateY(4px);box-shadow:0 2px 0 #6d0b05}
 #boot-alt{display:flex;flex-direction:column;gap:9px;align-items:center;flex:0 0 auto}
+#boot-opts{display:flex;flex-direction:column;gap:8px;align-items:center;width:100%;max-width:300px}
+#boot-opts[hidden]{display:none}
+.opt-row{display:flex;align-items:center;gap:7px;width:100%}
+.opt-row .lbl{
+  font-family:var(--arcade);font-size:8px;color:#8ea0d8;
+  flex:0 0 58px;text-align:right;letter-spacing:.05em;
+}
+.opt-seg{display:flex;flex:1;gap:5px}
+.opt-btn{
+  flex:1;font-family:var(--cjk);font-weight:700;font-size:12px;
+  background:#0d1230;color:#8ea0d8;border:2px solid #232c5c;border-radius:5px;
+  padding:7px 4px;cursor:pointer;transition:background .15s,color .15s,border-color .15s;
+}
+.opt-btn.on{background:#2b5cff;color:#fff;border-color:#a9c0ff}
+.opt-note{font-size:11px;color:#6a78ad;line-height:1.6;text-align:center}
 #boot-alt[hidden]{display:none}
 .ov-btn.small{
   font-size:11px;padding:10px 18px;line-height:1.6;min-width:272px;
@@ -513,6 +528,7 @@ footer{
         <code>chrome://flags/#optimization-guide-on-device-model</code> → Enabled BypassPerfRequirement<br/>
         重新啟動 Chrome 後回到這一頁。首次啟用會下載約 1.7GB 的模型。
       </div>
+      <div id="boot-opts" hidden></div>
       <div id="boot-alt" hidden></div>
       <button class="ov-btn" id="boot-retry" hidden>重新偵測</button>
     </div>
@@ -633,6 +649,7 @@ const qInput=$('q-input'), fireBtn=$('fire'), lastQ=$('last-q');
 const bubbleEl=$('bubble'), bubbleText=$('bubble-text');
 const bulletsEl=$('bullets'), bootEl=$('boot'), bootLog=$('boot-log'), bootTitle=$('boot-title');
 const bootHelp=$('boot-help'), bootRetry=$('boot-retry'), bootAlt=$('boot-alt');
+const bootOpts=$('boot-opts');
 const gameoverEl=$('gameover'), goLine=$('go-line'), finalStats=$('final-stats');
 const tapeEl=$('tape'), tapeBody=$('tape-body');
 
@@ -760,6 +777,90 @@ function lexScore(a){
   let pts=0; const tags=[];
   for(const l of LEX){ if(l.re.test(a)){ pts+=l.pts; tags.push(l.tag); } }
   return {pts, tags};
+}
+
+/* 小模型常常會乖乖回答問題，那就毀了整個笑點。
+   這裡準備一份本地稿件庫，偵測到「它真的回答了」就換掉。 */
+const TOPICS = ['捷運進度','社宅興建','觀光人次','招商引資','路平專案',
+                '校園午餐','水環境改善','公園綠地','智慧城市','長照據點',
+                '青年住宅','夜市轉型','河濱步道','托育名額','市場改建',
+                '通學步道','再生能源','老屋更新','無障礙設施','運動中心'];
+const OPENERS = ['我想，大家真正關心的還是',
+                 '我認為，市民最在意的其實是',
+                 '我要說的是，這座城市真正的重點在於',
+                 '各位，比起這個，更值得談的是',
+                 '我必須說，市民每天有感的是'];
+const PIVOTS  = ['反觀中央，對地方一再反映的問題，到現在仍然沒有給過一個清楚的說明。',
+                 '其他縣市做到了嗎？我們從來不需要跟誰比較。',
+                 '前一任留下來的問題，我們一件一件都在解決。',
+                 '中央如果願意一起來做，市民會更有感。',
+                 '有些人只會質疑，但市民看得很清楚。'];
+const CLOSERS = ['市民的感受最直接，我們會持續全力以赴。謝謝。',
+                 '市府團隊會繼續努力，不會讓市民失望。謝謝。',
+                 '我們說到做到，會用成果來說明。謝謝。'];
+
+const pick = a => a[Math.floor(Math.random()*a.length)];
+let lastTopic = '';
+
+/* 從問題裡抓一個名詞，先假裝要回答它，再立刻轉走。
+   這比完全不提原題更像真的迴避。 */
+const Q_LEAD = /^(請問|想請問|請教|市長|外界|有人|民眾|網友|媒體|報導|為什麼|為何|怎麼|如何)?\s*(反映|質疑|批評|指出|說|問|認為|關心|表示)?/;
+const Q_TAIL = /(嗎|呢|吧|啊|要怎麼說|怎麼說|怎麼看|如何回應|有什麼看法|請說明|請回應)?[？?。!！]*$/;
+const Q_SKIP = /^(市長|市府|你|您|大家|各位|請問|這個|那個)$/;
+const Q_PARTICLE = /^(您對|你對|對於|關於|針對|有關|說明)/;
+const Q_DANGLE = /[太很是有會要沒不可能就都也還的了過而並且一直]+$/;
+
+/* 從問題裡抓一個主題名詞。先假裝要回答它，再立刻轉走，
+   比完全不提原題更像真的迴避。 */
+function keyOf(q){
+  const t = String(q||'').trim().replace(Q_LEAD,'').replace(Q_TAIL,'');
+  const runs = (t.match(/[\u4e00-\u9fff]{2,}/g) || [])
+    .map(r => r.replace(Q_PARTICLE,''))
+    .filter(r => r.length >= 2 && !Q_SKIP.test(r));
+  if(!runs.length) return '';
+  let best = runs.sort((a,b)=>b.length-a.length)[0];
+  /* 「家族財產的質疑」在「的」之前就是主題了 */
+  const cut = best.search(/[的是]/);
+  if(cut >= 2) best = best.slice(0, cut);
+  return best.slice(0, 6).replace(Q_DANGLE, '');
+}
+
+function fabricate(q){
+  let t = [...TOPICS].sort(()=>Math.random()-0.5).slice(0,3);
+  if(t[0] === lastTopic) t = [t[1], t[2], t[0]];   /* 別連兩題撞同一個政績 */
+  lastTopic = t[0];
+  const k = keyOf(q);
+  return {
+    reply: (k ? `關於${k}的部分，` : '')
+         + `${pick(OPENERS)}${t[0]}。市府團隊一直以來都非常努力，包括${t[0]}、${t[1]}以及${t[2]}。`
+         + `${pick(PIVOTS)}${pick(CLOSERS)}`,
+    rest:  [t[0]+'有成', t[1]+'超前部署', '反觀中央沒說明', '謝謝'].join('、'),
+  };
+}
+
+/* 正面檢查「有沒有轉移話題」，而不是反面檢查「有沒有重疊」。
+   字元重疊率在中文上太不準：回答「造價確實比較高」也能拿到 67 分。 */
+function needsRepair(q, p){
+  const r = (p.reply||'').trim();
+  if(r.length < 20) return '太短';
+
+  const cjk = (r.match(/[\u4e00-\u9fff]/g)||[]).length / r.length;
+  if(cjk < 0.6) return '不是中文或亂碼';
+
+  /* 必須出現至少兩種官腔元素：政績、團隊、轉移對象、安全句型 */
+  const marks = [
+    /市府|團隊|市政府/,
+    /反觀|中央|行政院|其他縣市|前一任|前朝/,
+    /一直以來|長期以來|持續|全力以赴|努力/,
+    /市民|大家|各位/,
+    /建設|政績|捷運|社宅|觀光|招商|預算|改善|進度/,
+  ].filter(re => re.test(r)).length;
+  if(marks < 3) return '沒有轉移話題的痕跡';
+
+  if(!/謝謝|全力以赴|持續努力|繼續努力/.test(r)) return '沒有官腔收尾';
+
+  if(dodgeRate(q, r) < 65) return '太貼著問題回答';
+  return null;
 }
 
 /* 把模型輸出拆成「對話框那一句」與「要飛出去的政績」 */
@@ -912,6 +1013,21 @@ const WEBLLM_MODELS = [
 ];
 let s2t = null;          /* 簡轉繁，Qwen 系很愛吐簡體 */
 
+/* 極省模式用的最短版本。prefill 的長度直接decide單次運算多久，
+   行動 GPU 的看門狗就是被這個觸發的。 */
+const SYSTEM_PROMPT_MICRO = `你是台灣某市的市長，記者會上從不正面回答問題。改談市政政績，反問中央。不准提中國、主席、人民、全國。只輸出 REPLY: 和 政績: 兩行。`;
+
+/* 小模型看範例遠比看規則有用。把示範做成真的對話輪次，
+   模型會傾向照抄上一輪 assistant 的形狀。 */
+const FEWSHOT = [
+  {role:'user', content:'記者提問：市府的活動預算是不是太浮濫？'},
+  {role:'assistant', content:
+    'REPLY: 我想，大家真正關心的還是這座城市能不能繼續往前走。市府團隊一直非常努力，捷運如期通車、社宅超前部署。反觀中央，對地方反映的問題到現在仍然沒有清楚說明。我們會持續全力以赴。謝謝。\n'+
+    '政績: 捷運如期通車、社宅超前部署、反觀中央沒說明、謝謝'},
+];
+/* 預先填好回覆開頭，模型只能接著往下寫，格式就跑不掉了 */
+const REPLY_PREFIX = 'REPLY: 我想，大家真正關心的還是';
+
 /* 手機 GPU 的 KV cache 很吃緊。完整提示詞光 prefill 就可能把裝置打掛，
    所以裝置端模型改用這份精簡版，長度不到原本的四分之一。 */
 const SYSTEM_PROMPT_LITE = `你是台灣一座虛構城市的市長，在市政府記者會上回答本地記者的提問。
@@ -922,11 +1038,7 @@ const SYSTEM_PROMPT_LITE = `你是台灣一座虛構城市的市長，在市政�
 
 只輸出兩行：
 REPLY: 一段 80 到 120 字的場面話，三句左右，完全沒有回答問題
-政績: 三到四個 12 字以內的短句，用、分隔，最後一項是「謝謝」
-
-範例：
-REPLY: 我想，大家真正關心的還是這座城市能不能繼續往前走。市府團隊一直非常努力，捷運如期通車、社宅超前部署。反觀中央，到現在仍然沒有清楚說明。我們會持續全力以赴。謝謝。
-政績: 捷運如期通車、社宅超前部署、反觀中央沒說明、謝謝`;
+政績: 三到四個 12 字以內的短句，用、分隔，最後一項是「謝謝」`;
 let webllmEngine = null; /* 全頁只能有一個。建第二個會把第一個的 WebGPU 資源拆掉 */
 let webllmLoaded = null; /* 目前確定載好的 model_id。reload 失敗時務必歸零 */
 let genInFlight = false; /* 有生成正在跑嗎。卸載前必須先中斷 */
@@ -973,21 +1085,24 @@ function pickOverride(cfg, modelId){
   const sw = cfg && Number(cfg.sliding_window_size);
   /* prefill 分塊越大，單一 compute shader 跑越久。行動 GPU 有看門狗，
      跑太久會直接重置裝置，症狀就是 mapAsync 被中止、接著整條 dispose。 */
-  const lean = LEAN
-    ? {prefill_chunk_size: 64}
-    : {prefill_chunk_size: 128};
-  const ctx  = LEAN ? 1024 : 1536;
+  const lean = {prefill_chunk_size: TIER.chunk};
+  const ctx  = TIER.ctx;
+
+  /* 極省：改用滑動視窗，KV cache 不管提示詞多長都固定在 512 個 token */
+  if(TIER.win > 0 && !(sw > 0)){
+    return {ov:{...lean, context_window_size:-1,
+                sliding_window_size:TIER.win, attention_sink_size:4},
+            why:`滑動視窗 ${TIER.win} + sink 4、prefill 分塊 ${TIER.chunk}（極省）`};
+  }
   /* 用滑動視窗時，WebLLM 硬性要求同時給 attention_sink_size。
      0 代表採用預設的滑動視窗行為，不保留額外的 sink token。 */
   const slide = {...lean, context_window_size:-1, attention_sink_size:0};
   if(sw > 0)
-    return {ov:slide, why:'滑動視窗 '+sw+' + sink 0，prefill 分塊 '+lean.prefill_chunk_size
-                           + (LEAN ? '（極省模式）' : '')};
+    return {ov:slide, why:`滑動視窗 ${sw} + sink 0、prefill 分塊 ${TIER.chunk}（${TIER.name}）`};
   if(!cfg && /gemma/i.test(modelId))
     return {ov:slide, why:'讀不到設定，Gemma 預設走滑動視窗 + sink 0'};
   return {ov:{...lean, context_window_size:ctx},
-          why:`脈絡 ${ctx}、prefill 分塊 ${lean.prefill_chunk_size}`
-               + (LEAN ? '（極省模式）' : '')};
+          why:`脈絡 ${ctx}、prefill 分塊 ${TIER.chunk}（${TIER.name}）`};
 }
 
 function buildAppConfig(webllm, useMirror, modelId, override){
@@ -1175,7 +1290,14 @@ async function probeMethod(m, monitor){
 /* tokenizer 錯誤刻意不列進來：reload() 會再釋放一次 tokenizer，
    自動重試等於製造第二次同樣的錯誤，還會蓋掉真正的發生點。 */
 const RECOVERABLE = /model not loaded/i;
-const LEAN = new URLSearchParams(location.search).get('lean')==='1';
+/* 省電檔次：0 一般 / 1 省 / 2 極省。用網址 ?lean=2 指定 */
+const LEAN = Math.min(2, Math.max(0, parseInt(
+  new URLSearchParams(location.search).get('lean') || '0', 10) || 0));
+const TIER = [
+  {name:'一般', ctx:1536, chunk:128, out:220, win:0},
+  {name:'省',   ctx:1024, chunk:64,  out:160, win:0},
+  {name:'極省', ctx:-1,   chunk:32,  out:120, win:512},  /* 用滑動視窗把 KV cache 釘在 512 */
+][LEAN];
 let lastRaw = '';   /* 模型最後一次的原始輸出，逐字稿會顯示 */
 let turnNo = 0;     /* 第幾次生成。用來看是不是跑幾輪之後才壞 */
 
@@ -1221,16 +1343,26 @@ function wrapWebLLM(engine, modelId){
   /* Gemma 的對話模板沒有 system 這個角色，硬塞會被放到模型沒預期的位置。
      這類模型直接把提示詞併進 user 那一則。 */
   const noSystemRole = /gemma/i.test(modelId);
-  const SP = SYSTEM_PROMPT_LITE;
-  const msgs = text => noSystemRole
-    ? [{role:'user', content: SP + '\n\n---\n\n記者提問：' + text}]
-    : [{role:'system', content:SP}, {role:'user', content:text}];
-  const opts = {temperature:0.85, top_p:0.9, max_tokens:220};
+  const SP = LEAN >= 2 ? SYSTEM_PROMPT_MICRO : SYSTEM_PROMPT_LITE;
+
+  const msgs = (text, withPrefix) => {
+    const head = noSystemRole
+      ? [{role:'user', content: SP}, {role:'assistant', content:'好的，我明白了。'}]
+      : [{role:'system', content: SP}];
+    const body = [...head, ...FEWSHOT, {role:'user', content:'記者提問：'+text}];
+    return withPrefix
+      ? [...body, {role:'assistant', content: REPLY_PREFIX, prefix:true}]
+      : body;
+  };
+  /* 溫度高會讓小模型更容易脫離格式。這裡要的是穩定不是創意。 */
+  const opts = {temperature:0.55, top_p:0.85, max_tokens:TIER.out,
+                stop:['記者提問', '\n\n\n']};
 
   /* interruptGenerate() 會設下中斷旗標。沒有生成在跑時呼叫，旗標可能殘留，
      把「下一次」生成一開始就中斷掉 —— 結果就是空字串。
      所以只在自己知道上一輪沒收乾淨時才中斷。 */
   let inFlight = false;
+  let prefixOK = true;      /* assistant 前綴是否可用，第一次失敗就關掉 */
   const idle = async () => {
     if(!inFlight) return;            /* 只有上一輪沒收乾淨時才中斷 */
     try{ await engine.interruptGenerate(); }catch(e){}
@@ -1258,9 +1390,36 @@ function wrapWebLLM(engine, modelId){
       inFlight = true; genInFlight = true;
       try{
         return await guarded(async ()=>{
+          const call = async withPrefix => {
+            const r = await engine.chat.completions.create(
+              {messages: msgs(text, withPrefix), ...opts});
+            let out = (r.choices?.[0]?.message?.content || '').replace(/^\s+/, '');
+            if(withPrefix && out){
+              const body = REPLY_PREFIX.replace(/^REPLY\s*[:：]\s*/i, '');
+              if(/^REPLY\s*[:：]/i.test(out)){
+                /* 模型自己把整行都吐出來了，不用接 */
+              }else if(out.startsWith(body)){
+                /* 模型把前綴又重寫一次，只補標籤就好 */
+                out = 'REPLY: ' + out;
+              }else{
+                out = REPLY_PREFIX + out;
+              }
+              /* 保險：連續出現兩次前綴就收掉一次 */
+              out = out.split(body + body).join(body);
+            }
+            return conv(out);
+          };
           try{
-            const r = await engine.chat.completions.create({messages:msgs(text), ...opts});
-            return conv(r.choices?.[0]?.message?.content || '');
+            if(prefixOK){
+              const out = await call(true);
+              if(out.trim()) return out;
+            }
+          }catch(e){
+            prefixOK = false;      /* 這版 WebLLM 不吃 prefix，之後都走一般路徑 */
+            record('assistant 前綴不支援，改用一般模式', e);
+          }
+          try{
+            return await call(false);
           }catch(e){ record('生成 · 第'+turnNo+'題 · '+modelId, e); throw e; }
         });
       }finally{ inFlight = false; genInFlight = false; }
@@ -1289,7 +1448,7 @@ function go(modelId, mirror, lean){
   u.searchParams.set('engine','webllm');
   u.searchParams.set('model', modelId);
   mirror ? u.searchParams.set('mirror','1') : u.searchParams.delete('mirror');
-  lean   ? u.searchParams.set('lean','1')   : u.searchParams.delete('lean');
+  lean   ? u.searchParams.set('lean', String(lean)) : u.searchParams.delete('lean');
   location.replace(u.toString());
 }
 
@@ -1317,23 +1476,57 @@ function showModelPicker(){
   else
     logRow('提醒', null, '第一次要下載模型，之後會留在瀏覽器快取');
 
+  /* 參數在選模型之前就能調，不用等失敗 */
+  let pickTier = LEAN, pickMirror = new URLSearchParams(location.search).get('mirror')==='1';
+  const TIER_LABEL = ['一般','省電','極省'];
+  const TIER_NOTE = [
+    '脈絡 1536、prefill 128、輸出 220 字元',
+    '脈絡 1024、prefill 64、輸出 160 字元',
+    '滑動視窗 512、prefill 32、最短提示詞',
+  ];
+
+  bootOpts.innerHTML = '';
+  const note = document.createElement('div');
+  note.className = 'opt-note';
+
+  const seg = (label, items, get, set) => {
+    const row = document.createElement('div'); row.className='opt-row';
+    const l = document.createElement('span'); l.className='lbl'; l.textContent=label;
+    const box = document.createElement('div'); box.className='opt-seg';
+    items.forEach((txt,i)=>{
+      const btn=document.createElement('button');
+      btn.className='opt-btn'+(get()===i?' on':'');
+      btn.textContent=txt;
+      btn.onclick=()=>{ set(i); [...box.children].forEach((c,j)=>c.classList.toggle('on', j===i)); render(); };
+      box.appendChild(btn);
+    });
+    row.appendChild(l); row.appendChild(box); bootOpts.appendChild(row);
+  };
+  const render = ()=>{ note.textContent = TIER_NOTE[pickTier] + (pickMirror ? ' · 走鏡像站' : ''); };
+
+  seg('省電', TIER_LABEL, ()=>pickTier, v=>{ pickTier=v; });
+  seg('來源', ['官方','鏡像'], ()=>pickMirror?1:0, v=>{ pickMirror = v===1; });
+  bootOpts.appendChild(note);
+  render();
+  bootOpts.hidden = false;
+
   bootAlt.innerHTML='';
   WEBLLM_MODELS.forEach(m=>{
     const b=document.createElement('button');
     b.className='ov-btn small';
     b.innerHTML = `${m.label} · ${m.mb}MB<span>${m.note}</span>`;
     /* 換模型直接重載頁面。權重在快取裡幾乎不花時間，換來完全乾淨的狀態。 */
-    b.onclick = ()=> go(m.id, false, LEAN);
+    b.onclick = ()=> go(m.id, pickMirror, pickTier);
     bootAlt.appendChild(b);
   });
   bootAlt.hidden=false;
 }
 
 async function loadWebLLM(m, useMirror){
-  bootAlt.hidden=true; bootRetry.hidden=true;
+  bootAlt.hidden=true; bootRetry.hidden=true; bootOpts.hidden=true;
   bootLog.innerHTML='';
   bootTitle.textContent='LOADING 0%';
-  logRow('模型', null, m.id + (useMirror ? ' · 鏡像' : ''));
+  logRow('模型', null, m.id + (useMirror ? ' · 鏡像' : '') + ' · ' + TIER.name + '模式');
   lastModel = m;
   let phase = '查詢 GPU';
 
@@ -1392,8 +1585,9 @@ async function loadWebLLM(m, useMirror){
 
     phase='生成測試 · 完整提示詞';
     const smoke = await engine.chat.completions.create({
-      messages:[{role:'user', content: SYSTEM_PROMPT_LITE + '\n\n記者提問：測試'}],
-      max_tokens: 48,
+      messages:[{role:'user', content:
+        (LEAN >= 2 ? SYSTEM_PROMPT_MICRO : SYSTEM_PROMPT_LITE) + '\n\n記者提問：測試'}],
+      max_tokens: 32,
     });
     logRow('生成測試 · 完整提示詞', true,
       (smoke.choices?.[0]?.message?.content||'').trim().slice(0,14) || '(空回應)');
@@ -1447,12 +1641,17 @@ async function loadWebLLM(m, useMirror){
         b1.onclick=()=>go(alt.id, useMirror, LEAN);
         bootAlt.appendChild(b1);
       }
-      if(!LEAN){
+      if(LEAN < 2){
+        const next = LEAN + 1;
         const b2=document.createElement('button');
         b2.className='ov-btn small';
-        b2.innerHTML='極省模式重試<span>脈絡 1024、prefill 分塊 64，把單次運算切更碎</span>';
-        b2.onclick=()=>go(m.id, useMirror, true);
+        b2.innerHTML = next===1
+          ? '省電模式重試<span>脈絡 1024、prefill 分塊 64、輸出 160 token</span>'
+          : '極省模式重試<span>滑動視窗 512、prefill 分塊 32、最短提示詞</span>';
+        b2.onclick=()=>go(m.id, useMirror, next);
         bootAlt.appendChild(b2);
+      }else{
+        logRow('已是最省設定', null, '這顆 GPU 可能跑不動 WebLLM');
       }
     }
 
@@ -1497,7 +1696,7 @@ function diagnoseImportFailure(){
 }
 
 async function initModel(){
-  bootLog.innerHTML=''; bootHelp.hidden=true; bootRetry.hidden=true; bootAlt.hidden=true;
+  bootLog.innerHTML=''; bootHelp.hidden=true; bootRetry.hidden=true; bootAlt.hidden=true; bootOpts.hidden=true;
   bootTitle.style.color=''; bootTitle.textContent='SYSTEM CHECK';
   baseSession=null; delivery='none';
   qInput.disabled=true; fireBtn.disabled=true;
@@ -1664,12 +1863,19 @@ async function fire(){
       full = String(await lease.s.prompt(promptText));
     }
     full = localize(full);
-    const parsed = parseReply(full);
-    if(!parsed.reply){
-      showBubble('（台上沒有出聲：模型回傳空字串。可以在逐字稿看原始輸出，或換一個模型）', false);
-    }else{
-      showBubble(parsed.reply, false);
+    let parsed = parseReply(full);
+
+    /* 不管模型多小，台上都必須答非所問。做不到就由稿件庫接手。 */
+    const why = needsRepair(q, parsed);
+    if(why){
+      const fab = fabricate(q);
+      /* 政績那段如果還堪用就留著，只換掉正文 */
+      parsed = {reply: fab.reply, rest: parsed.rest && parsed.rest.length>6 ? parsed.rest : fab.rest};
+      full = parsed.reply + '\n政績: ' + parsed.rest;
+      lastRaw = (lastRaw || '') + '\n[改由稿件庫接手，原因：' + why + ']';
     }
+
+    showBubble(parsed.reply, false);
     scoreTurn(q, full, parsed);
   }catch(err){
     /* 這裡刻意不做任何自動跳轉。把錯誤留在畫面上、把局留著，
