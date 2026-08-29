@@ -43,6 +43,7 @@ body{
 
 /* ---------- cabinet ---------- */
 #cabinet{
+  flex:0 0 auto;          /* 不准被 flex 壓縮，否則 overflow:hidden 會切掉底部按鈕 */
   width:100%;
   max-width:1080px;
   border:3px solid #1b2142;
@@ -337,8 +338,13 @@ body{
   position:absolute;inset:0;z-index:20;
   background:rgba(3,5,14,.94);
   display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  gap:16px;padding:28px;text-align:center;
+  align-items:center;
+  justify-content:flex-start;      /* 舊瀏覽器退路 */
+  justify-content:safe center;     /* 內容比容器高時，從頂端開始且捲得到 */
+  gap:16px;padding:24px 20px;text-align:center;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
 }
 .overlay[hidden]{display:none}
 .ov-title{font-family:var(--arcade);font-size:22px;color:var(--gold);line-height:1.6}
@@ -354,6 +360,17 @@ body{
   box-shadow:0 6px 0 #6d0b05;
 }
 .ov-btn:active{transform:translateY(4px);box-shadow:0 2px 0 #6d0b05}
+#boot-alt{display:flex;flex-direction:column;gap:9px;align-items:center;flex:0 0 auto}
+#boot-alt[hidden]{display:none}
+.ov-btn.small{
+  font-size:11px;padding:10px 18px;line-height:1.6;min-width:272px;
+  background:linear-gradient(180deg,#2b5cff,#123bbd);border-color:#a9c0ff;
+  box-shadow:0 5px 0 #0a2270;
+}
+.ov-btn.small span{
+  display:block;font-family:var(--cjk);font-size:12px;font-weight:700;
+  color:#c9d8ff;margin-top:4px;
+}
 #boot-log{
   font-family:var(--arcade);font-size:10px;line-height:2.4;
   color:#8ea0d8;text-align:left;
@@ -372,7 +389,7 @@ body{
 /* ---------- transcript ---------- */
 #tape{
   position:absolute;inset:0;z-index:25;
-  background:rgba(4,6,16,.97);
+  background:#04060f;
   display:flex;flex-direction:column;
 }
 #tape[hidden]{display:none}
@@ -401,6 +418,15 @@ footer{
 }
 
 @media (max-width:760px){
+  .overlay{gap:11px;padding:16px 14px}
+  .ov-title{font-size:14px;line-height:1.5}
+  .ov-sub{font-size:13px;line-height:1.7}
+  .ov-sub code{font-size:9px;padding:3px 5px}
+  #boot-log{font-size:8px;line-height:2}
+  .ov-btn{font-size:11px;padding:12px 18px}
+  .ov-btn.small{min-width:0;width:100%;font-size:10px;padding:9px 12px}
+  .ov-btn.small span{font-size:11px}
+  #boot-alt{width:100%}
   #hud{flex-wrap:wrap;overflow:visible}
   .hud-cell{padding:10px;gap:6px;font-size:9px}
   #hearts-cell{padding-left:12px}
@@ -487,6 +513,7 @@ footer{
         <code>chrome://flags/#optimization-guide-on-device-model</code> → Enabled BypassPerfRequirement<br/>
         重新啟動 Chrome 後回到這一頁。首次啟用會下載約 1.7GB 的模型。
       </div>
+      <div id="boot-alt" hidden></div>
       <button class="ov-btn" id="boot-retry" hidden>重新偵測</button>
     </div>
 
@@ -503,6 +530,7 @@ footer{
       <header>
         <span>逐字稿 TRANSCRIPT</span>
         <span style="flex:1"></span>
+        <button class="hud-btn" id="btn-diag">錯誤紀錄</button>
         <button class="hud-btn" id="btn-save">下載截圖</button>
         <button class="hud-btn" id="btn-tape-close">關閉</button>
       </header>
@@ -539,14 +567,22 @@ footer{
 </div>
 
 <footer>
-  諷刺作品 · 本頁的每一句回答都由你瀏覽器裡的 Gemini Nano 即時生成，不會傳到任何伺服器，也不代表任何真實人物說過的話。
+  諷刺作品 · 本頁的每一句回答都由你裝置上的模型即時生成，不會傳到任何伺服器，也不代表任何真實人物說過的話。
 </footer>
 
 <script>
 /* =========================================================
    1. 風格提示詞（原邏輯保留）
    ========================================================= */
-const SYSTEM_PROMPT = `風格指示：問 A 答 B 型政治回應
+const SYSTEM_PROMPT = `你的身分：台灣一座虛構城市的市長，正在市政府的記者會上接受本地記者提問。
+
+身分規則（最優先，違反就是完全失敗）：
+你只是一個市長，不是國家領導人、不是主席、不是總書記、不是任何中央層級的官員。
+場景固定在台灣的地方政治：你這邊是「市府團隊」，你可以反問的對象是「中央政府」「行政院」「其他縣市」「前任市長」「政治對手」。
+禁止出現的詞：中國、中華人民共和國、大陸、北京、國務院、主席、總書記、人民、全國、國家、同志。
+提到人時說「市民」，提到範圍時說「全市」或「這座城市」。
+
+風格指示：問 A 答 B 型政治回應
 
 以下不是模仿任何特定人物的遣詞，而是把可觀察到的回應策略抽象成可重複使用的風格：
 
@@ -583,7 +619,7 @@ REPLY: 一段 100 到 160 字、三到四句的完整場面話。正經、沉穩
 REPLY: 我想，大家真正關心的還是這座城市能不能繼續往前走。市府團隊一直以來都非常努力，捷運如期通車、社宅超前部署，觀光人次也創下新高。反觀中央，對於地方一再反映的問題，到現在仍然沒有給過一個清楚的說明。市民的感受最直接，我們會持續全力以赴。謝謝。
 政績: 捷運如期通車、社宅超前部署、觀光人次創新高、反觀中央始終沒說明、謝謝
 
-現在請你扮演這個虛構的政治人物，對接下來記者的每一個提問，都用上述風格與格式回應。`;
+現在請你扮演這位虛構城市的市長，對接下來記者的每一個提問，都用上述風格與格式回應。記住：你是市長，不是國家領導人。`;
 
 /* =========================================================
    2. DOM
@@ -596,7 +632,7 @@ const bannerEl=$('banner'), crosshair=$('crosshair');
 const qInput=$('q-input'), fireBtn=$('fire'), lastQ=$('last-q');
 const bubbleEl=$('bubble'), bubbleText=$('bubble-text');
 const bulletsEl=$('bullets'), bootEl=$('boot'), bootLog=$('boot-log'), bootTitle=$('boot-title');
-const bootHelp=$('boot-help'), bootRetry=$('boot-retry');
+const bootHelp=$('boot-help'), bootRetry=$('boot-retry'), bootAlt=$('boot-alt');
 const gameoverEl=$('gameover'), goLine=$('go-line'), finalStats=$('final-stats');
 const tapeEl=$('tape'), tapeBody=$('tape-body');
 
@@ -609,7 +645,11 @@ function fitStage(){
   const drawn = STAGE_H * s;
   /* 手機上舞台被壓得很扁，長回覆會蓋掉整個畫面。
      這裡給一個最低高度，多出來的空間留在上方放對話框，人物則貼齊底部。 */
-  const minH = stage.clientWidth < 720 ? 336 : 0;
+  /* 開機／結束畫面的內容比舞台高很多，捲動可以解決，但至少要給它一個
+     像樣的可視高度，否則手機上只剩三行的窗口。 */
+  const overlayOpen = !bootEl.hidden || !gameoverEl.hidden;
+  const narrow = stage.clientWidth < 720;
+  const minH = narrow ? (overlayOpen ? Math.min(innerHeight * 0.52, 460) : 336) : 0;
   const h = Math.max(drawn, minH);
   layer.style.setProperty('--s', s);
   layer.style.top = (h - drawn) + 'px';
@@ -724,9 +764,15 @@ function lexScore(a){
 
 /* 把模型輸出拆成「對話框那一句」與「要飛出去的政績」 */
 function parseReply(text){
-  const t = String(text).replace(/^[\s\S]*?(?=REPLY\s*[:：])/i, '').trim() || String(text).trim();
+  const raw = String(text || '');
+  /* 開頭常有換行、引號、粗體記號，先清掉再找句尾，否則第一刀會切出空字串 */
+  const t = (raw.replace(/^[\s\S]*?(?=REPLY\s*[:：])/i, '') || raw)
+              .replace(/^[\s*>#「『"'\-]+/, '').trim();
+  if(!t) return {reply:'', rest:''};
+
   const m = t.match(/REPLY\s*[:：]\s*/i);
   let reply, rest;
+
   if(m){
     const after = t.slice(m.index + m[0].length);
     const j = after.search(/(政績|政見|ACHIEVEMENTS?)\s*[:：]/i);
@@ -734,17 +780,23 @@ function parseReply(text){
       reply = after.slice(0, j);
       rest  = after.slice(j).replace(/^(政績|政見|ACHIEVEMENTS?)\s*[:：]\s*/i, '');
     }else{
-      const k = after.search(/[。！？!?\n]/);
-      reply = k >= 0 ? after.slice(0, k+1) : after;
-      rest  = k >= 0 ? after.slice(k+1) : '';
+      reply = after; rest = '';
     }
   }else{
-    /* 模型沒照格式時的後備：第一句進對話框，其餘做卡片 */
-    const k = t.search(/[。！？!?\n]/);
-    reply = k >= 0 ? t.slice(0, k+1) : t;
-    rest  = k >= 0 ? t.slice(k+1) : '';
+    /* 沒照格式時：整段當回覆，另外把「政績:」那段挑出來做卡片 */
+    const j = t.search(/(政績|政見)\s*[:：]/);
+    if(j >= 0){
+      reply = t.slice(0, j);
+      rest  = t.slice(j).replace(/^(政績|政見)\s*[:：]\s*/, '');
+    }else{
+      reply = t; rest = '';
+    }
   }
-  return {reply: reply.replace(/^[「"']|[」"']$/g,'').trim(), rest: rest.trim()};
+
+  reply = reply.replace(/^[\s*>#「『"'\-]+/, '').replace(/[「」『』"']$/, '').trim();
+  /* 切完是空的就退回整段，寧可顯示多一點也不要交白卷 */
+  if(!reply) reply = t;
+  return {reply, rest: rest.trim()};
 }
 
 /* 抽出可以做成飛行卡片的金句 */
@@ -830,13 +882,202 @@ function endGame(reason){
     `<span>金句 HITS</span><b>${G.hits}</b>`+
     `<span>最高迴避率</span><b>${G.best}%</b>`+
     `<span>提問數</span><b>${G.turns.filter(t=>t.role==='q').length}</b>`;
-  gameoverEl.hidden=false;
+  gameoverEl.hidden=false; syncStage();
 }
 
 /* =========================================================
    8. Gemini Nano（原偵測與建立流程保留）
    ========================================================= */
 let lmAPI=null, baseSession=null, delivery='none';
+
+/* 瀏覽器內模型（WebGPU）。手機上 Chrome 沒有 Nano，只剩這條路。
+   數字是 WebLLM 官方標的 VRAM 需求。 */
+const WEBLLM_MODELS = [
+  {id:'Llama-3.2-1B-Instruct-q4f16_1-MLC', label:'Llama 3.2 1B', mb:879,
+   note:'最小的可用選項。中文非官方支援，但不會有中國語境'},
+  {id:'Qwen2.5-0.5B-Instruct-q4f16_1-MLC', label:'Qwen2.5 0.5B', mb:945,
+   note:'最小的堪用中文模型，格式常跑掉'},
+  {id:'Qwen2.5-0.5B-Instruct-q4f32_1-MLC', label:'Qwen2.5 0.5B · f32', mb:1060,
+   note:'同上但數值較穩。f16 出亂碼時改用這個'},
+  {id:'Llama-3.2-1B-Instruct-q4f32_1-MLC', label:'Llama 3.2 1B · f32', mb:1129,
+   note:'同上但數值較穩'},
+  {id:'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', label:'Qwen2.5 1.5B', mb:1630,
+   note:'品質明顯較好。舊手機可能撐不住'},
+  {id:'Qwen2.5-1.5B-Instruct-q4f32_1-MLC', label:'Qwen2.5 1.5B · f32', mb:1889,
+   note:'同上但數值較穩'},
+  {id:'gemma-2-2b-it-q4f16_1-MLC', label:'Gemma 2 2B', mb:1895,
+   note:'訓練以英文為主，中文較弱'},
+  {id:'gemma-2-2b-it-q4f32_1-MLC', label:'Gemma 2 2B · f32', mb:2509,
+   note:'同上但數值較穩'},
+];
+let s2t = null;          /* 簡轉繁，Qwen 系很愛吐簡體 */
+
+/* 手機 GPU 的 KV cache 很吃緊。完整提示詞光 prefill 就可能把裝置打掛，
+   所以裝置端模型改用這份精簡版，長度不到原本的四分之一。 */
+const SYSTEM_PROMPT_LITE = `你是台灣一座虛構城市的市長，在市政府記者會上回答本地記者的提問。
+
+你只是市長，不是國家領導人、不是主席。不准出現這些詞：中國、大陸、北京、主席、國務院、人民、全國、國家。說人要說「市民」，說範圍要說「全市」。可以反問的對象只有：中央政府、其他縣市、前任市長。
+
+回答規則：抓一個關鍵字把話題轉走，改談市政政績，反問中央或其他縣市有沒有做到，最後說謝謝。語氣正經沉穩，彷彿已經完整回答了。
+
+只輸出兩行：
+REPLY: 一段 80 到 120 字的場面話，三句左右，完全沒有回答問題
+政績: 三到四個 12 字以內的短句，用、分隔，最後一項是「謝謝」
+
+範例：
+REPLY: 我想，大家真正關心的還是這座城市能不能繼續往前走。市府團隊一直非常努力，捷運如期通車、社宅超前部署。反觀中央，到現在仍然沒有清楚說明。我們會持續全力以赴。謝謝。
+政績: 捷運如期通車、社宅超前部署、反觀中央沒說明、謝謝`;
+let webllmEngine = null; /* 全頁只能有一個。建第二個會把第一個的 WebGPU 資源拆掉 */
+let webllmLoaded = null; /* 目前確定載好的 model_id。reload 失敗時務必歸零 */
+let genInFlight = false; /* 有生成正在跑嗎。卸載前必須先中斷 */
+
+/* esm.run 常常對大套件轉檔逾時，多備幾個來源輪流試 */
+const CDN_WEBLLM = [
+  'https://esm.run/@mlc-ai/web-llm',
+  'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/+esm',
+  'https://esm.sh/@mlc-ai/web-llm',
+];
+const CDN_OPENCC = [
+  'https://esm.run/opencc-js',
+  'https://cdn.jsdelivr.net/npm/opencc-js/+esm',
+  'https://esm.sh/opencc-js',
+];
+
+/* 權重放 huggingface.co，wasm 放 raw.githubusercontent.com。
+   這兩個任一個被擋，WebLLM 只會丟一句沒有網址的 "Failed to fetch"。 */
+const MIRRORS = [
+  ['https://huggingface.co/',                'https://hf-mirror.com/'],
+  ['https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/',
+   'https://cdn.jsdelivr.net/gh/mlc-ai/binary-mlc-llm-libs@main/'],
+];
+
+function applyMirrors(url){
+  let u = url;
+  for(const [from,to] of MIRRORS) u = u.replace(from, to);
+  return u;
+}
+
+/* Gemma 這類用 sliding window attention 的模型，預設設定會同時帶
+   context_window_size 和 sliding_window_size，WebLLM 會拒絕啟動。
+   官方的建議就是把其中一個設成 -1，這裡兩種都準備好依序試。 */
+/* 衝突來自「模型自己的設定有 sliding_window_size」+「WebLLM 的 record 又設了
+   context_window_size」。Gemma 的注意力機制本來就是滑動視窗，強制關掉會算錯，
+   輸出就變亂碼。所以優先把 context_window_size 設成 -1，保留模型原生行為。 */
+/* 先讀模型自己的 mlc-chat-config.json 判斷該怎麼覆寫，不要用試錯的。
+   試錯會產生失敗的半成品引擎，那正是 tokenizer 被重複釋放的來源。 */
+function pickOverride(cfg, modelId){
+  /* KV cache 的大小跟 context_window_size 成正比。手機 GPU 撐不住預設的
+     4096，第一次真正生成時 prefill 就會把 buffer 打爆，錯誤長這樣：
+     "Buffer was unmapped before mapping was resolved" 接著整條 dispose。
+     這個遊戲的提示詞加問題只需要一千個 token 上下，壓到 1536 綽綽有餘。 */
+  const sw = cfg && Number(cfg.sliding_window_size);
+  /* prefill 分塊越大，單一 compute shader 跑越久。行動 GPU 有看門狗，
+     跑太久會直接重置裝置，症狀就是 mapAsync 被中止、接著整條 dispose。 */
+  const lean = LEAN
+    ? {prefill_chunk_size: 64}
+    : {prefill_chunk_size: 128};
+  const ctx  = LEAN ? 1024 : 1536;
+  /* 用滑動視窗時，WebLLM 硬性要求同時給 attention_sink_size。
+     0 代表採用預設的滑動視窗行為，不保留額外的 sink token。 */
+  const slide = {...lean, context_window_size:-1, attention_sink_size:0};
+  if(sw > 0)
+    return {ov:slide, why:'滑動視窗 '+sw+' + sink 0，prefill 分塊 '+lean.prefill_chunk_size
+                           + (LEAN ? '（極省模式）' : '')};
+  if(!cfg && /gemma/i.test(modelId))
+    return {ov:slide, why:'讀不到設定，Gemma 預設走滑動視窗 + sink 0'};
+  return {ov:{...lean, context_window_size:ctx},
+          why:`脈絡 ${ctx}、prefill 分塊 ${lean.prefill_chunk_size}`
+               + (LEAN ? '（極省模式）' : '')};
+}
+
+function buildAppConfig(webllm, useMirror, modelId, override){
+  const cfg = JSON.parse(JSON.stringify(webllm.prebuiltAppConfig));
+  cfg.model_list.forEach(r=>{
+    if(useMirror){
+      if(r.model)     r.model     = applyMirrors(r.model);
+      if(r.model_lib) r.model_lib = applyMirrors(r.model_lib);
+    }
+    if(r.model_id===modelId && override){
+      r.overrides = Object.assign({}, r.overrides, override);
+    }
+  });
+  return cfg;
+}
+
+/* Adreno 這類行動 GPU 的 buffer 上限和 f16 支援差異很大，
+   先問清楚，不要對著一句 AbortError 猜。 */
+async function gpuInfo(){
+  try{
+    const ad = await navigator.gpu.requestAdapter();
+    if(!ad) return null;
+    let info = {};
+    try{ info = ad.info || (ad.requestAdapterInfo ? await ad.requestAdapterInfo() : {}); }catch(e){}
+    const mb = n => Math.round((n||0)/1048576) + 'MB';
+    return {
+      vendor: info.vendor || '?',
+      arch:   info.architecture || info.description || '?',
+      f16:    ad.features?.has('shader-f16') ?? false,
+      maxBuffer:  ad.limits?.maxBufferSize,
+      maxStorage: ad.limits?.maxStorageBufferBindingSize,
+      text: `${info.vendor||'?'}/${info.architecture||'?'} · f16:${ad.features?.has('shader-f16')?'有':'無'}`
+            + ` · buffer ${mb(ad.limits?.maxBufferSize)} · storage ${mb(ad.limits?.maxStorageBufferBindingSize)}`,
+    };
+  }catch(e){ return null; }
+}
+
+function hostOf(u){
+  try{ return new URL(u).host; }catch(e){ return String(u).slice(0,40) || '(空的網址)'; }
+}
+
+/* 只做診斷，不擋路。回傳失敗的主機清單。 */
+async function preflight(rec, useMirror){
+  const modelUrl = useMirror ? applyMirrors(rec.model)     : rec.model;
+  const libUrl   = useMirror ? applyMirrors(rec.model_lib) : rec.model_lib;
+  const bad = [];
+
+  let config = null;
+  try{
+    const r = await fetch(modelUrl + '/resolve/main/mlc-chat-config.json', {cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    config = await r.json();
+    logRow('權重主機', true, hostOf(modelUrl));
+  }catch(e){
+    bad.push(hostOf(modelUrl));
+    logRow('權重主機', false, hostOf(modelUrl)+' · '+(e.message||e.name));
+  }
+
+  if(!libUrl){
+    logRow('wasm 主機', null, '這版設定沒有 model_lib 欄位，交給 WebLLM 自己處理');
+  }else{
+    try{
+      const r = await fetch(libUrl, {method:'HEAD', cache:'no-store'});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      logRow('wasm 主機', true, hostOf(libUrl));
+    }catch(e){
+      bad.push(hostOf(libUrl));
+      logRow('wasm 主機', false, hostOf(libUrl)+' · '+(e.message||e.name));
+    }
+  }
+  return {bad, config};
+}
+
+async function importFirst(urls, label){
+  const fails=[];
+  for(const u of urls){
+    const host = new URL(u).host;
+    try{
+      bootTitle.textContent = 'FETCHING…';
+      const mod = await import(u);
+      logRow(label, true, host);
+      return mod;
+    }catch(e){
+      fails.push(host+' · '+(e.message||e.name));
+    }
+  }
+  const err = new Error(fails.join('   '));
+  err.fails = fails;
+  throw err;
+}
 
 /* 探針：用一份「一定看得出來有沒有生效」的 system prompt 實測。
    Chrome 的 create() 是 WebIDL dictionary，不認得的選項會被「安靜忽略」而不是丟例外，
@@ -894,13 +1135,24 @@ async function checkAvailability(api){
   return {raw:'unknown',ready:true,needsDownload:false,unavailable:false};
 }
 
+function syncStage(){ try{ fitStage(); }catch(e){} }
+
 function bootFail(title){
   bootTitle.textContent = title;
   bootTitle.style.color = '#ff6b6b';
-  bootHelp.hidden=false;
+  bootHelp.hidden = false;
   bootRetry.textContent='重新偵測';
   bootRetry.onclick=initModel;
   bootRetry.hidden=false;
+  if(navigator.gpu){
+    bootAlt.innerHTML='';
+    const b=document.createElement('button');
+    b.className='ov-btn small';
+    b.innerHTML='改用瀏覽器內小模型<span>手機可行，第一次要下載</span>';
+    b.onclick=showModelPicker;
+    bootAlt.appendChild(b);
+    bootAlt.hidden=false;
+  }
 }
 
 /* 實際送一則訊息，看 system prompt 有沒有生效 */
@@ -918,18 +1170,353 @@ async function probeMethod(m, monitor){
   return {ok: out.includes(CANARY), note: out ? out.trim().slice(0,20).replace(/\s+/g,' ') : '無回應'};
 }
 
+/* 把 WebLLM 的 OpenAI 式介面包成跟 Prompt API 一樣的形狀，
+   這樣 fire() 完全不用改。 */
+/* tokenizer 錯誤刻意不列進來：reload() 會再釋放一次 tokenizer，
+   自動重試等於製造第二次同樣的錯誤，還會蓋掉真正的發生點。 */
+const RECOVERABLE = /model not loaded/i;
+const LEAN = new URLSearchParams(location.search).get('lean')==='1';
+let lastRaw = '';   /* 模型最後一次的原始輸出，逐字稿會顯示 */
+let turnNo = 0;     /* 第幾次生成。用來看是不是跑幾輪之後才壞 */
+
+/* Qwen 是簡體中文語料為主訓練的，很容易滑回中國的政治語境，
+   自稱主席、把場景講成全國。提示詞壓不住時，輸出再過一層在地化替換。 */
+const SCRUB = [
+  /* 複合詞要排在前面，否則會被拆成兩半各自替換，變成「中央市民」這種怪東西 */
+  [/中國人民|全國人民|人民群眾|廣大人民|全體人民/g, '全體市民'],
+  [/中華人民共和國|中國大陸|大陸方面|中國/g,        '中央'],
+  [/國家主席|黨主席|總書記|主席/g,                  '市長'],
+  [/北京|中南海/g,          '中央'],
+  [/國務院/g,               '行政院'],
+  [/全國各地|全國上下|全國/g, '全市'],
+  [/國家/g,                 '這座城市'],
+  [/人民/g,                 '市民'],
+  [/同志們|各位同志/g,       '各位市民'],
+];
+function localize(t){
+  let out = String(t || '');
+  for(const [re, to] of SCRUB) out = out.replace(re, to);
+  return out;
+}
+
+/* 出過的每一個錯誤都留底，含堆疊。不再靠猜。 */
+const DIAG = [];
+function record(where, e){
+  const entry = {
+    t: new Date().toISOString().slice(11,19),
+    where,
+    msg: (e && (e.message||e.name)) || String(e),
+    stack: (e && e.stack ? String(e.stack).split('\n').slice(0,4).join(' | ') : ''),
+  };
+  DIAG.push(entry);
+  console.error('['+where+']', e);
+  return entry;
+}
+addEventListener('error', ev => record('window.onerror', ev.error || ev.message));
+addEventListener('unhandledrejection', ev => record('unhandledrejection', ev.reason));
+
+function wrapWebLLM(engine, modelId){
+  const conv = t => { try{ return s2t ? s2t(t) : t; }catch(e){ return t; } };
+
+  /* Gemma 的對話模板沒有 system 這個角色，硬塞會被放到模型沒預期的位置。
+     這類模型直接把提示詞併進 user 那一則。 */
+  const noSystemRole = /gemma/i.test(modelId);
+  const SP = SYSTEM_PROMPT_LITE;
+  const msgs = text => noSystemRole
+    ? [{role:'user', content: SP + '\n\n---\n\n記者提問：' + text}]
+    : [{role:'system', content:SP}, {role:'user', content:text}];
+  const opts = {temperature:0.85, top_p:0.9, max_tokens:220};
+
+  /* interruptGenerate() 會設下中斷旗標。沒有生成在跑時呼叫，旗標可能殘留，
+     把「下一次」生成一開始就中斷掉 —— 結果就是空字串。
+     所以只在自己知道上一輪沒收乾淨時才中斷。 */
+  let inFlight = false;
+  const idle = async () => {
+    if(!inFlight) return;            /* 只有上一輪沒收乾淨時才中斷 */
+    try{ await engine.interruptGenerate(); }catch(e){}
+    inFlight = false; genInFlight = false;
+  };
+
+
+
+  /* 模型被卸載或物件被回收時，自己重載一次再試，不要直接把錯誤丟給玩家 */
+  const guarded = async (fn) => {
+    try{ return await fn(); }
+    catch(e){
+      if(!RECOVERABLE.test(e.message||'')) throw e;
+      console.warn('引擎失效，重新載入模型：', e.message);
+      webllmLoaded = null;
+      await engine.reload(modelId);
+      webllmLoaded = modelId;
+      return await fn();
+    }
+  };
+
+  const self = {
+    async prompt(text){
+      await idle();
+      inFlight = true; genInFlight = true;
+      try{
+        return await guarded(async ()=>{
+          try{
+            const r = await engine.chat.completions.create({messages:msgs(text), ...opts});
+            return conv(r.choices?.[0]?.message?.content || '');
+          }catch(e){ record('生成 · 第'+turnNo+'題 · '+modelId, e); throw e; }
+        });
+      }finally{ inFlight = false; genInFlight = false; }
+    },
+    /* 刻意不用 WebLLM 的串流。串流要把它的 async generator 包在我的
+       async generator 裡，只要消費端提早離開，內層就會被中途丟棄，
+       那是整段程式裡最容易把引擎搞壞的地方。改成一次拿完再自己逐字顯示。 */
+    promptStreaming(text){
+      return (async function*(){
+        const full = await self.prompt(text);
+        lastRaw = full;
+        if(!full) return;
+        for(let i=1;i<=full.length;i++){
+          yield full.slice(0,i);
+          if(i%2===0) await new Promise(r=>setTimeout(r,8));
+        }
+      })();
+    },
+    destroy(){}
+  };
+  return self;
+}
+
+function go(modelId, mirror, lean){
+  const u = new URL(location.href);
+  u.searchParams.set('engine','webllm');
+  u.searchParams.set('model', modelId);
+  mirror ? u.searchParams.set('mirror','1') : u.searchParams.delete('mirror');
+  lean   ? u.searchParams.set('lean','1')   : u.searchParams.delete('lean');
+  location.replace(u.toString());
+}
+
+function showModelPicker(){
+  bootEl.hidden=false; syncStage();
+  bootTitle.textContent='SELECT ENGINE';
+  bootTitle.style.color='';
+  bootHelp.hidden=true; bootRetry.hidden=true;
+  bootLog.innerHTML='';
+
+  if(!navigator.gpu){
+    logRow('WebGPU', false, '這個瀏覽器不支援，沒辦法在裝置上跑模型');
+    bootAlt.hidden=true;
+    bootRetry.textContent='重新偵測'; bootRetry.onclick=initModel; bootRetry.hidden=false;
+    return;
+  }
+  logRow('WebGPU', true, '可用');
+  gpuInfo().then(gi=>{
+    if(!gi) return;
+    logRow('GPU', true, gi.text);
+    if(!gi.f16) logRow('提醒', null, '沒有 shader-f16，請直接選 f32 版本');
+  });
+  if(location.protocol === 'file:')
+    logRow('來源', false, 'file:// 無法載入模組，請用本機伺服器開啟');
+  else
+    logRow('提醒', null, '第一次要下載模型，之後會留在瀏覽器快取');
+
+  bootAlt.innerHTML='';
+  WEBLLM_MODELS.forEach(m=>{
+    const b=document.createElement('button');
+    b.className='ov-btn small';
+    b.innerHTML = `${m.label} · ${m.mb}MB<span>${m.note}</span>`;
+    /* 換模型直接重載頁面。權重在快取裡幾乎不花時間，換來完全乾淨的狀態。 */
+    b.onclick = ()=> go(m.id, false, LEAN);
+    bootAlt.appendChild(b);
+  });
+  bootAlt.hidden=false;
+}
+
+async function loadWebLLM(m, useMirror){
+  bootAlt.hidden=true; bootRetry.hidden=true;
+  bootLog.innerHTML='';
+  bootTitle.textContent='LOADING 0%';
+  logRow('模型', null, m.id + (useMirror ? ' · 鏡像' : ''));
+  lastModel = m;
+  let phase = '查詢 GPU';
+
+  const gi = await gpuInfo();
+  if(gi){
+    logRow('GPU', true, gi.text);
+    if(!gi.f16 && /q4f16/.test(m.id))
+      logRow('警告', false, '這顆 GPU 沒有 shader-f16，請改用 f32 版本');
+  }else{
+    logRow('GPU', null, '取不到裝置資訊');
+  }
+  phase = '載入模組';
+
+  try{
+    const webllm = await importFirst(CDN_WEBLLM, 'WebLLM 模組');
+
+    const rec = webllm.prebuiltAppConfig.model_list.find(r=>r.model_id===m.id);
+    if(!rec) throw new Error('這個版本的 WebLLM 沒有 '+m.id+' 這個型號');
+
+    phase='探測來源';
+    let {bad, config} = await preflight(rec, useMirror);
+    if(bad.length && !useMirror){
+      logRow('自動切換', null, '主來源不通，改走鏡像再試一次');
+      useMirror = true;
+      ({bad, config} = await preflight(rec, true));
+    }
+    if(bad.length) logRow('警告', null, '仍偵測不到 '+bad.join('、')+'，還是試著下載看看');
+
+    const {ov, why} = pickOverride(config, m.id);
+    logRow('脈絡設定', true, why);
+
+    /* 這個分頁從頭到尾只會有一個引擎。換模型走的是重新載入頁面，
+       所以這裡不需要 unload、不需要處理交接，也就不會有
+       "Tokenizer instance already deleted" 的機會。 */
+    phase='建立引擎';
+    const engine = new webllm.MLCEngine({
+      appConfig: buildAppConfig(webllm, useMirror, m.id, ov),
+      initProgressCallback: p=>{
+        const pct = Math.round((p.progress||0)*100);
+        bootTitle.textContent = `LOADING ${pct}%`;
+        bootLog.innerHTML = `<div class="warn">${(p.text||'').slice(0,90)}</div>`;
+      },
+    });
+    phase='下載並載入模型';
+    await engine.reload(m.id);
+
+    webllmEngine = engine;
+    webllmLoaded = m.id;
+
+    /* 冒煙測試：確認引擎真的能生成，把問題擋在開機畫面而不是第一次提問 */
+    /* 分兩段測，才分得出來是「完全不能生成」還是「prefill 太大」 */
+    bootTitle.textContent='TESTING…';
+    phase='生成測試 · 小負載';
+    await engine.chat.completions.create({messages:[{role:'user', content:'嗨'}], max_tokens:4});
+    logRow('生成測試 · 小負載', true, '通過');
+
+    phase='生成測試 · 完整提示詞';
+    const smoke = await engine.chat.completions.create({
+      messages:[{role:'user', content: SYSTEM_PROMPT_LITE + '\n\n記者提問：測試'}],
+      max_tokens: 48,
+    });
+    logRow('生成測試 · 完整提示詞', true,
+      (smoke.choices?.[0]?.message?.content||'').trim().slice(0,14) || '(空回應)');
+
+    try{
+      const OpenCC = await importFirst(CDN_OPENCC, '簡轉繁模組');
+      s2t = (OpenCC.Converter || OpenCC.default?.Converter)({from:'cn', to:'tw'});
+    }catch(e){
+      s2t = null;
+      logRow('簡轉繁', null, '載不到，輸出可能是簡體');
+    }
+
+    baseSession = wrapWebLLM(engine, m.id);
+    delivery = 'webllm';
+    logRow('引擎', true, 'WebLLM · '+m.label);
+
+    bootTitle.textContent='READY';
+    bootTitle.style.color='#4ade80';
+    bootLog.innerHTML += '<div class="warn blink" style="margin-top:10px">按 FIRE 開始記者會</div>';
+    setTimeout(()=>{
+      bootEl.hidden=true; syncStage();
+      qInput.disabled=false; fireBtn.disabled=false;
+      qInput.focus();
+    }, 700);
+
+  }catch(err){
+    bootTitle.textContent='LOAD FAILED';
+    bootTitle.style.color='#ff6b6b';
+    if(err.fails) err.fails.forEach(f=>logRow('CDN', false, f));
+    else{
+      const d = record('載入 · '+phase, err);
+      logRow('載入失敗', false, '['+phase+'] '+d.msg);
+      if(d.stack) logRow('堆疊', null, d.stack.slice(0,150));
+    }
+
+    /* 這行只在真的像連線問題時才有意義，不要對著設定錯誤亂指方向 */
+    const netish = !!err.fails || /fetch|network|load|cors|http/i.test(err.message||'');
+    if(netish) logRow('可能原因', null, diagnoseImportFailure());
+
+    bootAlt.innerHTML='';
+
+    const gpuish = /mapAsync|GPUBuffer|unmapped|device.*lost|out of memory|OOM|disposed/i.test(err.message||'');
+    if(gpuish){
+      logRow('判讀', null, 'GPU 在生成時被中斷，通常是顯示記憶體不足或驅動重置');
+      const f32 = m.id.replace('q4f16_1','q4f32_1');
+      const alt = f32 !== m.id && WEBLLM_MODELS.find(x=>x.id===f32);
+      if(alt){
+        const b1=document.createElement('button');
+        b1.className='ov-btn small';
+        b1.innerHTML='改用 f32 版本<span>'+alt.label+' · 不需要 shader-f16，驅動相容性較好</span>';
+        b1.onclick=()=>go(alt.id, useMirror, LEAN);
+        bootAlt.appendChild(b1);
+      }
+      if(!LEAN){
+        const b2=document.createElement('button');
+        b2.className='ov-btn small';
+        b2.innerHTML='極省模式重試<span>脈絡 1024、prefill 分塊 64，把單次運算切更碎</span>';
+        b2.onclick=()=>go(m.id, useMirror, true);
+        bootAlt.appendChild(b2);
+      }
+    }
+
+    if(!useMirror){
+      const b=document.createElement('button');
+      b.className='ov-btn small';
+      b.innerHTML='改用鏡像站重試<span>hf-mirror + jsDelivr，繞開被擋的主機</span>';
+      b.onclick=()=> go(m.id, true, LEAN);
+      bootAlt.appendChild(b);
+    }
+    const cp=document.createElement('button');
+    cp.className='ov-btn small';
+    cp.innerHTML='複製診斷內容<span>整份 SYSTEM CHECK 複製到剪貼簿</span>';
+    cp.onclick=async()=>{
+      const txt = bootLog.innerText
+                + '\n--- 錯誤紀錄 ---\n'
+                + (DIAG.length ? DIAG.map(d=>`${d.t} [${d.where}] ${d.msg}\n    ${d.stack}`).join('\n') : '(無)')
+                + '\n--- 環境 ---\nUA: ' + navigator.userAgent
+                + '\n來源: ' + location.href;
+      try{ await navigator.clipboard.writeText(txt); cp.innerHTML='已複製<span>貼給對方看</span>'; }
+      catch(e){ cp.innerHTML='複製失敗<span>請手動選取上方文字</span>'; }
+    };
+    bootAlt.appendChild(cp);
+
+    const back=document.createElement('button');
+    back.className='ov-btn small';
+    back.innerHTML='回到模型選單<span>換一個尺寸試試</span>';
+    back.onclick=showModelPicker;
+    bootAlt.appendChild(back);
+    bootAlt.hidden=false;
+    console.error(err);
+  }
+}
+let lastModel = null;
+
+function diagnoseImportFailure(){
+  if(location.protocol === 'file:')
+    return '這一頁是用 file:// 開的，跨來源請求會被擋。請改用本機伺服器';
+  if(!navigator.onLine)
+    return '瀏覽器回報目前離線';
+  return '主機不通或被阻擋（防火牆、擋廣告外掛、公司網路、DNS）';
+}
+
 async function initModel(){
-  bootLog.innerHTML=''; bootHelp.hidden=true; bootRetry.hidden=true;
+  bootLog.innerHTML=''; bootHelp.hidden=true; bootRetry.hidden=true; bootAlt.hidden=true;
   bootTitle.style.color=''; bootTitle.textContent='SYSTEM CHECK';
   baseSession=null; delivery='none';
   qInput.disabled=true; fireBtn.disabled=true;
+
+  const qs = new URLSearchParams(location.search);
+  if(qs.get('engine')==='webllm'){
+    const want = qs.get('model');
+    const m = want && WEBLLM_MODELS.find(x=>x.id===want);
+    if(m && navigator.gpu) loadWebLLM(m, qs.get('mirror')==='1');
+    else showModelPicker();
+    return;
+  }
 
   const resolved = resolveAPI();
   if(!resolved){
     const globals=['LanguageModel','ai'].map(k=>`${k}:${k in window?typeof window[k]:'未定義'}`).join('  ');
     logRow('全域物件', false, globals);
     logRow('內建 AI', false, '找不到可用的 Prompt API');
-    bootFail('AI 離線');
+    bootFail('AI 離線'); syncStage();
     return;
   }
   logRow('API 路徑', true, resolved.path);
@@ -984,7 +1571,7 @@ async function initModel(){
     bootTitle.style.color='#4ade80';
     bootLog.innerHTML += '<div class="warn blink" style="margin-top:10px">按 FIRE 開始記者會</div>';
     setTimeout(()=>{
-      bootEl.hidden=true;
+      bootEl.hidden=true; syncStage();
       qInput.disabled=false; fireBtn.disabled=false;
       qInput.focus();
     }, 700);
@@ -999,6 +1586,10 @@ async function initModel(){
 /* 每一題借一個乾淨的 session：
    clone() 會保留 system prompt 但清空對話history，避免多題之後爆掉 context。 */
 async function leaseSession(){
+  if(delivery==='webllm'){
+    /* 提示詞已經在 wrapWebLLM 裡帶了，這裡不要再疊字，省 KV cache */
+    return {s: baseSession, disposable:false, prefix:'', suffix:''};
+  }
   if(delivery==='inject'){
     const s = await lmAPI.create({});
     return {s, disposable:true,
@@ -1034,7 +1625,7 @@ async function fire(){
 
   if(!G.running){ G.running=true; startClock(); }
 
-  G.busy=true; G.ammo--;
+  G.busy=true; G.ammo--; turnNo++;
   qInput.value=''; qInput.disabled=true; fireBtn.disabled=true;
   beep('fire');
   renderHUD();
@@ -1064,24 +1655,37 @@ async function fire(){
           else if(isCumulative===false) acc+=s;
           else acc=s;
           prev=s;
-          showBubble(parseReply(acc).reply, true);
+          showBubble(parseReply(localize(acc)).reply, true);
         }
-        if(acc.trim()) { full=acc; answered=true; }
+        if(acc.trim()) { full=localize(acc); answered=true; }
       }catch(err){ console.warn('promptStreaming failed:', err); }
     }
     if(!answered){
       full = String(await lease.s.prompt(promptText));
     }
+    full = localize(full);
     const parsed = parseReply(full);
-    showBubble(parsed.reply || '……', false);
+    if(!parsed.reply){
+      showBubble('（台上沒有出聲：模型回傳空字串。可以在逐字稿看原始輸出，或換一個模型）', false);
+    }else{
+      showBubble(parsed.reply, false);
+    }
     scoreTurn(q, full, parsed);
   }catch(err){
-    showBubble('⚠️ 台上收音故障：'+err.message, false);
-    console.error(err);
+    /* 這裡刻意不做任何自動跳轉。把錯誤留在畫面上、把局留著，
+       讓你能看錯誤紀錄、也能直接再問一次。 */
+    record('提問流程 · 第'+turnNo+'題', err);
+    const gpu = /mapAsync|GPUBuffer|unmapped|device.*lost|out of memory|disposed/i.test(err.message||'');
+    showBubble('⚠️ 台上收音故障：'+err.message
+      + (gpu ? '\n看起來是顯示記憶體不足，裝置的 GPU 撐不住這個模型。重新整理頁面後換更小的模型試試。'
+             : '\n（局還在，可以再問一次。詳情看逐字稿裡的「錯誤紀錄」）'), false);
   }finally{
     if(lease?.disposable){ try{ lease.s.destroy?.(); }catch(e){} }
     G.busy=false;
-    G.turns.push({role:'a', text: full ? (p=>[p.reply, p.rest].filter(Boolean).join('\n'))(parseReply(full)) : ''});
+    G.turns.push({role:'a',
+      text: full ? (p=>[p.reply, p.rest].filter(Boolean).join('\n'))(parseReply(full))
+                 : '(空回應)',
+      raw: (delivery==='webllm' && lastRaw && lastRaw!==full) ? lastRaw : full});
     renderTape();
     if(G.running){
       if(G.ammo<=0) reload();
@@ -1152,6 +1756,13 @@ function renderTape(){
     w.innerHTML = `<div class="who">${t.role==='q'?'記者':'台上'}</div>`+
                   `<div class="txt"></div>`;
     w.querySelector('.txt').textContent = t.text;
+    if(t.role==='a' && t.raw && t.raw !== t.text){
+      const r=document.createElement('div');
+      r.className='meta';
+      r.style.cssText='white-space:pre-wrap;color:#6a78ad;font-family:var(--cjk);font-size:12px;max-width:100%';
+      r.textContent = '原始輸出：'+t.raw;
+      w.appendChild(r);
+    }
     tapeBody.appendChild(w);
   });
   tapeBody.scrollTop = tapeBody.scrollHeight;
@@ -1260,12 +1871,23 @@ qInput.addEventListener('keydown', e=>{
 $('btn-tape').addEventListener('click', ()=>{ tapeEl.hidden=false; renderTape(); });
 $('btn-tape-close').addEventListener('click', ()=> tapeEl.hidden=true);
 $('btn-save').addEventListener('click', saveShot);
+$('btn-diag').addEventListener('click', async e=>{
+  const txt = (DIAG.length
+      ? DIAG.map(d=>`${d.t} [${d.where}] ${d.msg}\n    ${d.stack}`).join('\n\n')
+      : '目前沒有任何錯誤紀錄。')
+    + '\n\n引擎: ' + delivery + ' / ' + (webllmLoaded||'-')
+    + '\nUA: ' + navigator.userAgent
+    + '\n來源: ' + location.href;
+  try{ await navigator.clipboard.writeText(txt); e.target.textContent='已複製'; }
+  catch(_){ alert(txt); }
+  setTimeout(()=>{ e.target.textContent='錯誤紀錄'; }, 2000);
+});
 $('btn-sound').addEventListener('click', e=>{
   soundOn=!soundOn;
   e.target.textContent = soundOn?'SND ON':'SND OFF';
 });
 $('btn-again').addEventListener('click', ()=>{
-  gameoverEl.hidden=true;
+  gameoverEl.hidden=true; syncStage();
   newGame();
   hideBubble(); lastQ.textContent='';
   qInput.disabled=false; fireBtn.disabled=false;
