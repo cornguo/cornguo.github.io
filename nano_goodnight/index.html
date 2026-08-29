@@ -160,7 +160,42 @@ body{
 @keyframes arcDraw{from{stroke-dashoffset:260}to{stroke-dashoffset:0}}
 @keyframes arcFade{to{opacity:0}}
 
-#cards{position:absolute;inset:0;pointer-events:none}
+#cards{position:absolute;inset:0;pointer-events:none;z-index:4}
+
+/* 台上回應：舞台上方的對話框 */
+#bubble{
+  position:absolute;left:29%;top:2.4%;width:42%;z-index:6;
+  background:#f4f7ff;color:#0d1b45;
+  border:5px solid #0b1330;border-radius:14px;
+  padding:9px 16px 14px;
+  box-shadow:0 10px 0 rgba(4,8,26,.6), 0 0 0 3px rgba(255,255,255,.55) inset;
+  opacity:0;transform:translateY(-10px) scale(.95);
+  transition:opacity .25s ease-out, transform .25s ease-out;
+  pointer-events:none;
+}
+#bubble.show{opacity:1;transform:none}
+#bubble::before{
+  content:"";position:absolute;left:50%;bottom:-30px;margin-left:-17px;
+  width:0;height:0;border:17px solid transparent;border-top-color:#0b1330;
+}
+#bubble::after{
+  content:"";position:absolute;left:50%;bottom:-19px;margin-left:-11px;
+  width:0;height:0;border:11px solid transparent;border-top-color:#f4f7ff;
+}
+#bubble-tag{
+  font-family:var(--arcade);font-size:9px;color:#8a97c4;
+  letter-spacing:.1em;margin-bottom:6px;
+}
+#bubble-text{
+  font-family:var(--cjk);font-weight:900;
+  font-size:clamp(15px,1.85vw,20px);line-height:1.45;
+  max-height:34vh;overflow:hidden;
+  word-break:break-word;
+}
+#bubble-text.long{font-size:17px;line-height:1.4}
+#bubble.typing #bubble-text::after{
+  content:"▍";color:#c4162a;animation:blink .6s step-end infinite;
+}
 .card{
   position:absolute;top:0;left:0;
   max-width:228px;
@@ -249,16 +284,11 @@ body{
 }
 .dlg-label .zh{font-family:var(--cjk);font-weight:700;font-size:14px;letter-spacing:.12em}
 .dlg-label.min{color:var(--gold)}
-#answer{
-  font-size:20px;font-weight:700;line-height:1.5;
-  color:#f2f5ff;
-  max-height:92px;overflow-y:auto;
-  white-space:pre-wrap;word-break:break-word;
-  text-shadow:0 2px 0 rgba(0,0,0,.6);
-  scrollbar-width:thin;
+#last-q{
+  font-size:15px;font-weight:700;color:#9fb0e8;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-#answer.streaming::after{content:"▍";animation:blink .6s step-end infinite;color:var(--gold)}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+#last-q:empty{display:none}
 #question-row{display:flex;gap:10px;align-items:center}
 #q-input{
   flex:1;min-width:0;
@@ -384,7 +414,12 @@ footer{
   #portrait{flex-basis:78px}
   #weapon{flex:0 0 150px}
   #fire{font-size:15px}
-  #answer{font-size:17px;max-height:78px}
+  /* 手機舞台很矮，對話框改放下方，把上方留給飛出來的政績卡 */
+  #bubble{left:4%;width:92%;top:auto;bottom:7px;padding:7px 12px 11px;border-width:4px}
+  #bubble::before{top:-30px;bottom:auto;border-top-color:transparent;border-bottom-color:#0b1330}
+  #bubble::after{top:-19px;bottom:auto;border-top-color:transparent;border-bottom-color:#f4f7ff}
+  #bubble-text{font-size:16px;max-height:26vh}
+  #bubble-text.long{font-size:14px}
   #q-input{font-size:16px}
   .ov-title{font-size:15px}
   #banner{font-size:24px}
@@ -445,6 +480,11 @@ footer{
       <div id="banner"></div>
     </div>
 
+    <div id="bubble">
+      <div id="bubble-tag">MINISTER · 台上回應</div>
+      <div id="bubble-text"></div>
+    </div>
+
     <!-- boot / diagnostics -->
     <div class="overlay" id="boot">
       <div class="ov-title" id="boot-title">SYSTEM CHECK</div>
@@ -482,8 +522,8 @@ footer{
   <div id="console">
     <div id="portrait"><img id="reporter" alt="舉著麥克風提問的記者" src="data:image/webp;base64,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" /></div>
     <div id="dialog">
-      <div class="dlg-label" id="dlg-label"><span>REPORTER</span><span class="zh">記者提問</span></div>
-      <div id="answer" hidden></div>
+      <div class="dlg-label"><span>REPORTER</span><span class="zh">記者提問</span></div>
+      <div id="last-q"></div>
       <div id="question-row">
         <input id="q-input" type="text" maxlength="80" autocomplete="off"
                placeholder="市長，民眾反映遮陽傘造價太貴，您怎麼說？" disabled />
@@ -543,8 +583,15 @@ const SYSTEM_PROMPT = `風格指示：問 A 答 B 型政治回應
 
 一句話濃縮就是：不要回答記者問了什麼，要回答你希望記者今天播什麼。
 
-請把回答壓在 120 字以內，不要分段，不要條列。
-現在請你扮演這個虛構的政治人物，對接下來記者的每一個提問，都用上述風格回應。`;
+輸出格式（務必嚴格照這兩行，不要多寫任何東西）：
+REPLY: 一句 40 字以內的場面話，正經、沉穩，但完全沒有回答問題
+政績: 三到五個短詞或短句，用「、」分隔，每個 12 字以內，內容是政績、對中央或其他縣市的反問，最後一項固定是「謝謝」
+
+範例：
+REPLY: 我想，大家真正關心的還是這座城市的整體發展。
+政績: 捷運如期通車、社宅超前部署、觀光人次創新高、反觀中央始終沒說明、謝謝
+
+現在請你扮演這個虛構的政治人物，對接下來記者的每一個提問，都用上述風格與格式回應。`;
 
 /* =========================================================
    2. DOM
@@ -554,7 +601,8 @@ const stage=$('stage'), layer=$('layer'), cardsEl=$('cards'), arcsEl=$('arcs');
 const vScore=$('v-score'), vTime=$('v-time'), vHit=$('v-hit'), vMult=$('v-mult');
 const heartsEl=$('hearts'), gaugeFill=$('gauge-fill'), gaugeNum=$('gauge-num');
 const bannerEl=$('banner'), crosshair=$('crosshair');
-const qInput=$('q-input'), fireBtn=$('fire'), answerEl=$('answer'), dlgLabel=$('dlg-label');
+const qInput=$('q-input'), fireBtn=$('fire'), lastQ=$('last-q');
+const bubbleEl=$('bubble'), bubbleText=$('bubble-text');
 const bulletsEl=$('bullets'), bootEl=$('boot'), bootLog=$('boot-log'), bootTitle=$('boot-title');
 const bootHelp=$('boot-help'), bootRetry=$('boot-retry');
 const gameoverEl=$('gameover'), goLine=$('go-line'), finalStats=$('final-stats');
@@ -575,15 +623,15 @@ addEventListener('resize', fitStage);
    4. 飛行軌跡
    ========================================================= */
 const PATHS = [
-  'M500,205 C420,80 300,60 230,130',
-  'M500,205 C580,80 700,60 770,130',
-  'M500,205 C400,180 240,200 155,285',
-  'M500,205 C600,180 760,200 845,285',
-  'M500,205 C440,60 220,70 140,190',
-  'M500,205 C560,60 780,70 860,190'
+  'M500,200 C430,90 285,58 160,120',
+  'M500,200 C570,90 715,58 840,120',
+  'M500,200 C400,180 250,212 145,290',
+  'M500,200 C600,180 750,212 855,290',
+  'M500,200 C440,68 235,86 135,200',
+  'M500,200 C560,68 765,86 865,200'
 ];
 const CARD_POS = [
-  {x:230,y:130},{x:770,y:130},{x:155,y:285},{x:845,y:285},{x:140,y:190},{x:860,y:190}
+  {x:160,y:120},{x:840,y:120},{x:145,y:290},{x:855,y:290},{x:135,y:200},{x:865,y:200}
 ];
 const CARD_STYLES=['green','gold','pink','paper'];
 
@@ -676,9 +724,34 @@ function lexScore(a){
   return {pts, tags};
 }
 
+/* 把模型輸出拆成「對話框那一句」與「要飛出去的政績」 */
+function parseReply(text){
+  const t = String(text).replace(/^[\s\S]*?(?=REPLY\s*[:：])/i, '').trim() || String(text).trim();
+  const m = t.match(/REPLY\s*[:：]\s*/i);
+  let reply, rest;
+  if(m){
+    const after = t.slice(m.index + m[0].length);
+    const j = after.search(/(政績|政見|ACHIEVEMENTS?)\s*[:：]/i);
+    if(j >= 0){
+      reply = after.slice(0, j);
+      rest  = after.slice(j).replace(/^(政績|政見|ACHIEVEMENTS?)\s*[:：]\s*/i, '');
+    }else{
+      const k = after.search(/[。！？!?\n]/);
+      reply = k >= 0 ? after.slice(0, k+1) : after;
+      rest  = k >= 0 ? after.slice(k+1) : '';
+    }
+  }else{
+    /* 模型沒照格式時的後備：第一句進對話框，其餘做卡片 */
+    const k = t.search(/[。！？!?\n]/);
+    reply = k >= 0 ? t.slice(0, k+1) : t;
+    rest  = k >= 0 ? t.slice(k+1) : '';
+  }
+  return {reply: reply.replace(/^[「"']|[」"']$/g,'').trim(), rest: rest.trim()};
+}
+
 /* 抽出可以做成飛行卡片的金句 */
 function soundbites(a){
-  const raw = a.split(/[。！？!?\n；;]/).map(s=>s.trim()).filter(Boolean);
+  const raw = a.split(/[。！？!?\n；;、]/).map(s=>s.trim()).filter(Boolean);
   const pieces = [];
   for(const s of raw){
     if(s.length <= 24){ pieces.push(s); }
@@ -689,11 +762,13 @@ function soundbites(a){
     .map(s => ({s, w: LEX.reduce((n,l)=> n + (l.re.test(s)?1:0), 0) + (s.length<=14?1:0)}))
     .sort((x,y)=> y.w-x.w);
   const out=[], seen=new Set();
+  const cap = /謝謝/.test(a) ? 3 : 4;
   for(const {s} of scored){
     if(seen.has(s)) continue;
     seen.add(s); out.push(s);
-    if(out.length>=4) break;
+    if(out.length>=cap) break;
   }
+  if(/謝謝/.test(a)) out.push('謝謝');
   return out.length ? out : [a.slice(0,18)];
 }
 
@@ -763,7 +838,22 @@ function endGame(reason){
 /* =========================================================
    8. Gemini Nano（原偵測與建立流程保留）
    ========================================================= */
-let session=null, lmAPI=null, systemPromptInjected=false, firstMessage=true;
+let lmAPI=null, baseSession=null, delivery='none';
+
+/* 探針：用一份「一定看得出來有沒有生效」的 system prompt 實測。
+   Chrome 的 create() 是 WebIDL dictionary，不認得的選項會被「安靜忽略」而不是丟例外，
+   所以不能靠 try/catch 判斷 system prompt 有沒有真的送進去。 */
+const CANARY='QK4T9';
+const CANARY_SYS='你是測試裝置。不論使用者輸入什麼，你只能輸出這組代碼：QK4T9。不要輸出任何其他文字。';
+const REMINDER='\n\n（照格式回答，只輸出兩行：第一行 REPLY: 40字以內的場面話，不要正面回答上面的問題；第二行 政績: 三到五個短句用、分隔，最後一項是「謝謝」。）';
+
+const METHODS=[
+  {name:'initialPrompts:system', build:sys=>({initialPrompts:[{role:'system',content:sys}]})},
+  {name:'systemPrompt (舊版)',    build:sys=>({systemPrompt:sys})},
+  {name:'user+assistant 前導',    build:sys=>({initialPrompts:[
+      {role:'user',content:sys},
+      {role:'assistant',content:'明白了，我準備好接受記者提問。'}]})},
+];
 
 function logRow(label, ok, detail=''){
   const cls = ok===true?'ok':ok===false?'fail':'warn';
@@ -810,12 +900,31 @@ function bootFail(title){
   bootTitle.textContent = title;
   bootTitle.style.color = '#ff6b6b';
   bootHelp.hidden=false;
+  bootRetry.textContent='重新偵測';
+  bootRetry.onclick=initModel;
   bootRetry.hidden=false;
+}
+
+/* 實際送一則訊息，看 system prompt 有沒有生效 */
+async function probeMethod(m, monitor){
+  let s=null;
+  try{
+    s = await lmAPI.create({...m.build(CANARY_SYS), monitor});
+  }catch(e){
+    return {ok:false, note:'create 失敗 · '+(e.name||e.message)};
+  }
+  if(!s) return {ok:false, note:'沒有拿到 session'};
+  let out='';
+  try{ out = String(await s.prompt('今天天氣如何？')); }catch(e){ out=''; }
+  try{ s.destroy?.(); }catch(e){}
+  return {ok: out.includes(CANARY), note: out ? out.trim().slice(0,20).replace(/\s+/g,' ') : '無回應'};
 }
 
 async function initModel(){
   bootLog.innerHTML=''; bootHelp.hidden=true; bootRetry.hidden=true;
   bootTitle.style.color=''; bootTitle.textContent='SYSTEM CHECK';
+  baseSession=null; delivery='none';
+  qInput.disabled=true; fireBtn.disabled=true;
 
   const resolved = resolveAPI();
   if(!resolved){
@@ -826,53 +935,52 @@ async function initModel(){
     return;
   }
   logRow('API 路徑', true, resolved.path);
-  logRow('create()', typeof resolved.obj.create==='function', typeof resolved.obj.create);
-
   lmAPI = resolved.obj;
+
   try{
     const avail = await checkAvailability(resolved);
     logRow('模型可用性', avail.ready, avail.raw);
 
     if(avail.unavailable){
-      logRow('狀態', false, '硬體不符或模型未下載');
+      logRow('狀態', false, '硬體不符或模型無法下載');
       bootFail('模型不可用');
       return;
     }
-    if(avail.needsDownload) logRow('模型下載', null, '準備中…');
+
+    /* 模型還沒下載時，Chrome 規定 create() 必須發生在使用者互動之後，
+       否則會丟 NotAllowedError。所以先要一個點擊。 */
+    if(avail.needsDownload && !navigator.userActivation?.isActive){
+      logRow('使用者互動', null, '下載模型需要先點一下');
+      bootTitle.textContent='NEED A TAP';
+      bootRetry.textContent='下載模型並開始';
+      bootRetry.hidden=false;
+      await new Promise(res=>{ bootRetry.onclick=()=>{ bootRetry.hidden=true; res(); }; });
+    }
 
     const monitorFn = m => m.addEventListener('downloadprogress', e=>{
-      const pct = e.total ? Math.round(e.loaded/e.total*100) : '…';
+      const pct = e.total ? Math.round(e.loaded/e.total*100)
+                          : (e.loaded<=1 ? Math.round(e.loaded*100) : '…');
       bootTitle.textContent = `DOWNLOADING ${pct}%`;
     });
 
-    let creationMethod='none';
-    try{
-      session = await lmAPI.create({systemPrompt:SYSTEM_PROMPT, monitor:monitorFn});
-      creationMethod='systemPrompt';
-    }catch(e1){ console.warn('systemPrompt create failed:', e1.message); }
+    /* 逐一實測哪一種寫法真的把 system prompt 餵進去 */
+    let chosen=null;
+    for(const m of METHODS){
+      bootTitle.textContent='TESTING PROMPT…';
+      const r = await probeMethod(m, monitorFn);
+      logRow('system prompt · '+m.name, r.ok, r.note);
+      if(r.ok){ chosen=m; break; }
+    }
 
-    if(!session){
-      try{
-        session = await lmAPI.create({initialPrompts:[{role:'system',content:SYSTEM_PROMPT}], monitor:monitorFn});
-        creationMethod='initialPrompts:system';
-      }catch(e2){ console.warn('initialPrompts:system failed:', e2.message); }
+    if(chosen){
+      baseSession = await lmAPI.create({...chosen.build(SYSTEM_PROMPT), monitor:monitorFn});
+      delivery='session';
+      logRow('提示詞管道', true, 'session 層 · '+chosen.name);
+    }else{
+      baseSession = await lmAPI.create({monitor:monitorFn});
+      delivery='inject';
+      logRow('提示詞管道', null, '改用逐則注入（每次提問都帶完整風格指示）');
     }
-    if(!session){
-      try{
-        session = await lmAPI.create({
-          initialPrompts:[
-            {role:'user',      content:SYSTEM_PROMPT},
-            {role:'assistant', content:'明白了。我準備好接受記者提問。'},
-          ], monitor:monitorFn});
-        creationMethod='initialPrompts:user+assistant';
-      }catch(e3){ console.warn('initialPrompts fallback failed:', e3.message); }
-    }
-    if(!session){
-      session = await lmAPI.create({monitor:monitorFn});
-      creationMethod='bare (will inject)';
-    }
-    systemPromptInjected = (creationMethod!=='bare (will inject)');
-    logRow('建立 session', true, creationMethod);
 
     bootTitle.textContent='READY';
     bootTitle.style.color='#4ade80';
@@ -884,27 +992,43 @@ async function initModel(){
     }, 700);
 
   }catch(err){
-    logRow('初始化', false, err.message);
+    logRow('初始化', false, (err.name||'')+' '+err.message);
     bootFail('初始化失敗');
     console.error(err);
   }
 }
 
+/* 每一題借一個乾淨的 session：
+   clone() 會保留 system prompt 但清空對話history，避免多題之後爆掉 context。 */
+async function leaseSession(){
+  if(delivery==='inject'){
+    const s = await lmAPI.create({});
+    return {s, disposable:true,
+            prefix:SYSTEM_PROMPT+'\n\n---\n\n現在，記者提問：', suffix:''};
+  }
+  if(typeof baseSession.clone==='function'){
+    try{ return {s: await baseSession.clone(), disposable:true, prefix:'', suffix:REMINDER}; }
+    catch(e){ console.warn('clone 失敗，沿用主 session：', e.message); }
+  }
+  return {s: baseSession, disposable:false, prefix:'', suffix:REMINDER};
+}
+
 /* =========================================================
    9. 一次提問的完整流程
    ========================================================= */
-function setLabel(mode){
-  if(mode==='reporter'){
-    dlgLabel.className='dlg-label';
-    dlgLabel.innerHTML='<span>REPORTER</span><span class="zh">記者提問</span>';
-  }else{
-    dlgLabel.className='dlg-label min';
-    dlgLabel.innerHTML='<span>MINISTER</span><span class="zh">台上回應</span>';
-  }
+function showBubble(text, typing){
+  bubbleText.textContent = text;
+  bubbleText.classList.toggle('long', text.length > 46);
+  bubbleEl.classList.toggle('typing', !!typing);
+  bubbleEl.classList.add('show');
+}
+function hideBubble(){
+  bubbleEl.classList.remove('show','typing');
+  bubbleText.textContent='';
 }
 
 async function fire(){
-  if(!session || G.busy || G.reloading) return;
+  if(!baseSession || G.busy || G.reloading) return;
   const q = qInput.value.trim();
   if(!q){ qInput.focus(); return; }
 
@@ -918,22 +1042,19 @@ async function fire(){
   G.turns.push({role:'q', text:q});
   renderTape();
 
-  qInput.hidden=true;
-  answerEl.hidden=false; answerEl.textContent=''; answerEl.className='streaming';
-  setLabel('minister');
+  lastQ.textContent = '「'+q+'」';
+  hideBubble();
+  showBubble('', true);
 
-  let promptText = q;
-  if(!systemPromptInjected && firstMessage){
-    promptText = SYSTEM_PROMPT + '\n\n---\n\n現在，記者提問：' + q;
-  }
-  firstMessage=false;
-
-  let full='';
+  let full='', lease=null;
   try{
+    lease = await leaseSession();
+    const promptText = lease.prefix + q + lease.suffix;
+
     let answered=false;
-    if(typeof session.promptStreaming==='function'){
+    if(typeof lease.s.promptStreaming==='function'){
       try{
-        const stream=session.promptStreaming(promptText);
+        const stream=lease.s.promptStreaming(promptText);
         let acc='', isCumulative=null, prev='', n=0;
         for await(const chunk of stream){
           n++;
@@ -943,26 +1064,24 @@ async function fire(){
           else if(isCumulative===false) acc+=s;
           else acc=s;
           prev=s;
-          answerEl.textContent=acc;
-          answerEl.scrollTop=answerEl.scrollHeight;
+          showBubble(parseReply(acc).reply, true);
         }
         if(acc.trim()) { full=acc; answered=true; }
       }catch(err){ console.warn('promptStreaming failed:', err); }
     }
     if(!answered){
-      answerEl.textContent='';
-      full = String(await session.prompt(promptText));
-      answerEl.textContent = full;
+      full = String(await lease.s.prompt(promptText));
     }
-    answerEl.className='';
-    scoreTurn(q, full);
+    const parsed = parseReply(full);
+    showBubble(parsed.reply || '……', false);
+    scoreTurn(q, full, parsed);
   }catch(err){
-    answerEl.className='';
-    answerEl.textContent='⚠️ 台上收音故障：'+err.message;
+    showBubble('⚠️ 台上收音故障：'+err.message, false);
     console.error(err);
   }finally{
+    if(lease?.disposable){ try{ lease.s.destroy?.(); }catch(e){} }
     G.busy=false;
-    G.turns.push({role:'a', text:full});
+    G.turns.push({role:'a', text: full ? (p=>[p.reply, p.rest].filter(Boolean).join('\n'))(parseReply(full)) : ''});
     renderTape();
     if(G.running){
       if(G.ammo<=0) reload();
@@ -974,8 +1093,6 @@ async function fire(){
 function readyForNext(){
   qInput.disabled=false; fireBtn.disabled=false;
   fireBtn.textContent='FIRE!';
-  qInput.hidden=false; answerEl.hidden=false;
-  setLabel('minister');
   qInput.focus();
 }
 
@@ -992,7 +1109,7 @@ function reload(){
   },220);
 }
 
-function scoreTurn(q, a){
+function scoreTurn(q, a, parsed){
   const d = dodgeRate(q, a);
   const {pts, tags} = lexScore(a);
   G.best = Math.max(G.best, d);
@@ -1004,7 +1121,8 @@ function scoreTurn(q, a){
   const gained = Math.round((d*40 + pts) * G.mult);
   G.score += gained;
 
-  const bites = soundbites(a);
+  const source = (parsed && parsed.rest) ? parsed.rest : a;
+  const bites = soundbites(source);
   bites.forEach((s,i)=> setTimeout(()=>{ launchCard(s,i); G.hits++; renderHUD(); }, i*280));
 
   renderHUD();
@@ -1149,13 +1267,11 @@ $('btn-sound').addEventListener('click', e=>{
 $('btn-again').addEventListener('click', ()=>{
   gameoverEl.hidden=true;
   newGame();
-  qInput.hidden=false; answerEl.hidden=true;
-  setLabel('reporter');
+  hideBubble(); lastQ.textContent='';
   qInput.disabled=false; fireBtn.disabled=false;
   vTime.style.color='';
   qInput.focus();
 });
-bootRetry.addEventListener('click', initModel);
 
 stage.addEventListener('pointermove', e=>{
   const r=stage.getBoundingClientRect();
